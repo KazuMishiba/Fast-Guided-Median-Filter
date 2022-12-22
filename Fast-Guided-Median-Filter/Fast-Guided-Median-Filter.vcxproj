@@ -19,6 +19,7 @@
     <CudaCompile Include="conv\GuidedFilter.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="refactoring\FGMF_CPU_O1.h" />
     <ClInclude Include="main\boxFilter.cuh" />
     <ClInclude Include="main\common.h" />
     <ClInclude Include="conv\ConstantTimeWMF.cuh" />
@@ -44,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="conv\ConstantTimeWMF.cpp" />
+    <ClCompile Include="refactoring\FGMF_CPU_O1.cpp" />
     <ClCompile Include="main\DataContainer.cpp" />
     <ClCompile Include="test\Experimenter.cpp" />
     <ClCompile Include="main\FGMF.cpp" />

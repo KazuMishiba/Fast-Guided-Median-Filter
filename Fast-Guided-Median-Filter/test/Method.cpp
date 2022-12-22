@@ -18,8 +18,8 @@ Method::Method()
 	filePathSrc_video = R"(C:\Users\Kazu\source\repos\GuidedMedianFilter\GuidedMedianFilter\image\data\dishes\img)";
 #else
 	//2d
-	filePathSrc_2d = R"(src.png)";
-	//filePathSrc_2d = R"(E:\ProgramCode\\FastGuidedMedianFilter_save\image\src.png)";
+	//filePathSrc_2d = R"(src.png)";
+	filePathSrc_2d = R"(E:\ProgramCode\\FastGuidedMedianFilter_save\image\src.png)";
 	filePathGuide_2d = R"(E:\ProgramCode\\FastGuidedMedianFilter_save\image\guide.png)";
 	//video
 	filePathSrc_video = R"(E:\MATLAB\FastMedianFiltering\Experiments\optical flow\middlebury\result of flownet2\floForWMF\flo1_)";

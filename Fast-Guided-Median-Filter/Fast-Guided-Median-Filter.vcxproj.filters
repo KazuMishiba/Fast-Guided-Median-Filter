@@ -27,6 +27,7 @@
     <ClCompile Include="test\Method.cpp" />
     <ClCompile Include="test\save.cpp" />
     <ClCompile Include="main\Utility.cpp" />
+    <ClCompile Include="refactoring\FGMF_CPU_O1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main\boxFilter.cuh" />
@@ -51,5 +52,6 @@
     <ClInclude Include="test\Method.h" />
     <ClInclude Include="main\Utility.cuh" />
     <ClInclude Include="main\Utility.h" />
+    <ClInclude Include="refactoring\FGMF_CPU_O1.h" />
   </ItemGroup>
 </Project>
