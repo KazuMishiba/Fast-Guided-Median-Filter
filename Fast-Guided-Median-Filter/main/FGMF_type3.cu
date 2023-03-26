@@ -1081,10 +1081,10 @@ histogram‚ğint2‚©‚ç“Æ—§‚µ‚½‚Q‚Â‚É•ª‚¯‚½‚ª‘S‚­‘¬“x•Ï‚í‚ç‚¸B
 #if 0
 
 __global__ void
-de_gsum_y_fast(int width, int height, int radius, int4* sumG, cudaTextureObject_t texG, size_t pitchI4)
+de_gsum_y_fast(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t texG, size_t pitchI4)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 
 
@@ -1102,7 +1102,7 @@ de_gsum_y_fast(int width, int height, int radius, int4* sumG, cudaTextureObject_
 	}
 	*((int4*)((char*)sumG) + x) = make_int4(sumg, sumgg, 0, 0);
 
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		g = tex2D<int>(texG, float(x) + 0.5f, float(y + radius) + 0.5f);
 		_g = tex2D<int>(texG, float(x) + 0.5f, float(y - radius - 1) + 0.5f);
@@ -1117,7 +1117,7 @@ de_gsum_y_fast(int width, int height, int radius, int4* sumG, cudaTextureObject_
 
 //f,g•ª—£”Å è—L—¦‚ğ‚‚ß‚é
 __global__ void
-de_filter2D_shared3(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D_shared3(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockDim.x * blockIdx.x + threadIdx.x ‚É‚È‚éB
 	//
@@ -1129,7 +1129,7 @@ de_filter2D_shared3(int width, int height, int radius, int Imax, int* result_cen
 	int diameter = radius * 2 + 1;
 
 	int x = blockDim.x * blockIdx.x + threadIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	//’†SÀ•W‚©‚ç‚Ì‘Š‘ÎˆÊ’u‚ğ•\‚·tid‚ÍthreadIdx.y‚É‚È‚é
 	int tid = threadIdx.y;
@@ -1191,7 +1191,7 @@ de_filter2D_shared3(int width, int height, int radius, int Imax, int* result_cen
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//ƒqƒXƒgƒOƒ‰ƒ€‚É’Ç‰Á
 		f = tex2D<int>(texF, float(xPos) + 0.5f, float(y + radius) + 0.5f);
@@ -1261,11 +1261,11 @@ void cu_filter2D_shared3(SizeInfo& sizeInfo, cudaStream_t stream, int radius, in
 	}
 	//baseBlockSize‚ÉblockY‚ª‚¢‚­‚Â“ü‚é‚©
 	int blockX = baseBlockSize / blockY;
-	dim3 blockSize = dim3(blockX, blockY, 1);
+	dim3 blockSize_ = dim3(blockX, blockY, 1);
 	//printf("%d %d\n", blockX, blockY);
 	//int gridSizeX = sizeInfo.width;// ceil(sizeInfo.width / (float)blockSize);
-	int gridSizeX = ceil(sizeInfo.width / (float)blockX);
-	de_filter2D_shared3 << <gridSizeX, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, Imax, result_center, texF, texG, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
+	int gridSizeX = ceil(sizeInfo.width_ / (float)blockX);
+	de_filter2D_shared3 << <gridSizeX, blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, Imax, result_center, texF, texG, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
 
 	cudaDestroyTextureObject(texF);
 	cudaDestroyTextureObject(texG);
@@ -1278,7 +1278,7 @@ void cu_filter2D_shared3(SizeInfo& sizeInfo, cudaStream_t stream, int radius, in
 
 
 __global__ void
-de_filter2D(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockIdx.x ‚É‚È‚éB
 	/*
@@ -1289,7 +1289,7 @@ de_filter2D(int width, int height, int radius, int Imax, int* result_center, cud
 	int diameter = radius * 2 + 1;
 
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= diameter)
@@ -1348,7 +1348,7 @@ de_filter2D(int width, int height, int radius, int Imax, int* result_center, cud
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//ƒqƒXƒgƒOƒ‰ƒ€‚É’Ç‰Á
 		f = tex2D<int>(texF, float(xPos) + 0.5f, float(y + radius) + 0.5f);
@@ -1580,7 +1580,7 @@ h‚Ì˜a‚ª1‚Å‚ ‚é‚±‚Æ‚ª¬—§‚µ‚È‚­‚È‚é‚Ì‚Åhalf=0.5‚à¬‚è—§‚½‚¸A255‚ğ’´‚¦‚é‰ÓŠ‚ªo‚
 ‚Å‚«‚½‚ªAƒqƒXƒgƒOƒ‰ƒ€XV‚ª‘a‚È‚Ì‚Å–Í—l‚ª–Ú—§‚ÂB
 */
 __global__ void
-de_filter2D_histogramSampling(int width, int height, int samplingRate, float weightingFactor, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D_histogramSampling(int width_, int height_, int samplingRate, float weightingFactor, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockIdx.x ‚É‚È‚éB
 	/*
@@ -1593,7 +1593,7 @@ de_filter2D_histogramSampling(int width, int height, int samplingRate, float wei
 	int centerPos = radius / samplingRate;
 
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= radius * 2 + 1)
@@ -1659,7 +1659,7 @@ de_filter2D_histogramSampling(int width, int height, int samplingRate, float wei
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		if (y % samplingRate == 0)
 		{
@@ -1710,7 +1710,7 @@ de_filter2D_histogramSampling(int width, int height, int samplingRate, float wei
 
 //ã‹L–â‘è‰ğŒˆ‚Ì‚½‚ß‚ÉAƒqƒXƒgƒOƒ‰ƒ€‚ğ2‚Â—pˆÓ‚µ‚Äd‚İ•t‚«‚Å—p‚¢‚é
 __global__ void
-de_filter2D_histogramSampling2(int width, int height, int samplingRate, float weightingFactor, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D_histogramSampling2(int width_, int height_, int samplingRate, float weightingFactor, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockIdx.x ‚É‚È‚éB
 	/*
@@ -1723,7 +1723,7 @@ de_filter2D_histogramSampling2(int width, int height, int samplingRate, float we
 	int centerPos = radius / samplingRate;
 
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= centerPos * 2 + 1)
@@ -1812,7 +1812,7 @@ de_filter2D_histogramSampling2(int width, int height, int samplingRate, float we
 
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		if (y % samplingRate == 0)
 		{
@@ -1919,7 +1919,7 @@ de_filter2D_histogramSampling2(int width, int height, int samplingRate, float we
 
 //Œ´ˆö•s–¾‚Ìü‚ªo‚é‚Ì‚Åx•ûŒü‚ÍŠÔˆø‚©‚È‚¢
 __global__ void
-de_filter2D_histogramSampling3(int width, int height, int samplingRate, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D_histogramSampling3(int width_, int height_, int samplingRate, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t texG, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockIdx.x ‚É‚È‚éB
 	/*
@@ -1932,7 +1932,7 @@ de_filter2D_histogramSampling3(int width, int height, int samplingRate, int radi
 	int centerPos = radius;
 
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= centerPos * 2 + 1)
@@ -2021,7 +2021,7 @@ de_filter2D_histogramSampling3(int width, int height, int samplingRate, int radi
 
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		if (y % samplingRate == 0)
 		{
@@ -2162,9 +2162,9 @@ void cu_filter2D_histogramSampling(SizeInfo& sizeInfo, cudaStream_t stream, int 
 	int gridSizeX = sizeInfo.width;
 	de_filter2D_histogramSampling2 << <gridSizeX, blockSize, Imax * sizeof(int2), stream >> > (sizeInfo.width, sizeInfo.height, samplingRate, weightingFactor, adjustedRadius, Imax, result_center, texF, texG, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
 	*/
-	int blockSize = adjustedRadius * 2 + 1;//
-	int gridSizeX = sizeInfo.width;
-	de_filter2D_histogramSampling3 << <gridSizeX, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, samplingRate, adjustedRadius, Imax, result_center, texF, texG, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
+	int blockSize_ = adjustedRadius * 2 + 1;//
+	int gridSizeX = sizeInfo.width_;
+	de_filter2D_histogramSampling3 << <gridSizeX, blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, samplingRate, adjustedRadius, Imax, result_center, texF, texG, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
 
 
 	cudaDestroyTextureObject(texF);
@@ -2174,7 +2174,7 @@ void cu_filter2D_histogramSampling(SizeInfo& sizeInfo, cudaStream_t stream, int 
 //“]‘—ŠÔ‚ğœ‚¯‚Îf‚Ì‚İ‚Å‚à‘¬“x‚Í1%‚µ‚©‘¬‚­‚È‚ç‚È‚©‚Á‚½
 //f‚Ì‚İiƒZƒ‹ƒtƒKƒCƒhj
 __global__ void
-de_filter2D_selfGuide(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, float2* CxDx, size_t pitchI1, size_t pitchF2)
+de_filter2D_selfGuide(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, float2* CxDx, size_t pitchI1, size_t pitchF2)
 {
 	//ˆ—‘ÎÛ‚Ì’†SÀ•W‚Í blockIdx.x ‚É‚È‚éB
 	/*
@@ -2183,7 +2183,7 @@ de_filter2D_selfGuide(int width, int height, int radius, int Imax, int* result_c
 	*/
 
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= radius * 2 + 1)
@@ -2238,7 +2238,7 @@ de_filter2D_selfGuide(int width, int height, int radius, int Imax, int* result_c
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//ƒqƒXƒgƒOƒ‰ƒ€‚É’Ç‰Á
 		f = tex2D<int>(texF, xPos, y + radius);
@@ -2283,9 +2283,9 @@ void cu_filter2D_selfGuide(SizeInfo& sizeInfo, cudaStream_t stream, int radius, 
 	Utility::setLinearArrayToTexture(f, texF, sizeInfo, filterMode);
 
 	//c•ûŒü”Å shared
-	int blockSize = radius * 2 + 1;
-	int gridSizeX = sizeInfo.width;
-	de_filter2D_selfGuide << <gridSizeX, blockSize, Imax * sizeof(int2), stream >> > (sizeInfo.width, sizeInfo.height, radius, Imax, result_center, texF, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
+	int blockSize_ = radius * 2 + 1;
+	int gridSizeX = sizeInfo.width_;
+	de_filter2D_selfGuide << <gridSizeX, blockSize_, Imax * sizeof(int2), stream >> > (sizeInfo.width_, sizeInfo.height_, radius, Imax, result_center, texF, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float2>());
 
 	cudaDestroyTextureObject(texF);
 }
@@ -2530,10 +2530,10 @@ de_findMedianDebug(float*& cxdx2, int* histogramX, int *& fgSumUpToIndex2, int& 
 
 
 __global__ void
-de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texG3, float4* CxDx, size_t pitchI1, size_t pitchF4)
+de_filter2DDebug(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texG3, float4* CxDx, size_t pitchI1, size_t pitchF4)
 {
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= radius * 2 + 1)
@@ -2596,7 +2596,7 @@ de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//ƒqƒXƒgƒOƒ‰ƒ€‚É’Ç‰Á
 		f = tex2D<int>(texF, xPos, y + radius);
@@ -2660,10 +2660,10 @@ de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center
 
 
 __global__ void
-de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texGX, float** CxDx, size_t pitchI1, size_t pitchF1, int n)
+de_filter2DDebug(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texGX, float** CxDx, size_t pitchI1, size_t pitchF1, int n)
 {
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= radius * 2 + 1)
@@ -2739,7 +2739,7 @@ de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//ƒqƒXƒgƒOƒ‰ƒ€‚É’Ç‰Á
 		f = tex2D<int>(texF, xPos, y + radius);
@@ -2811,10 +2811,10 @@ de_filter2DDebug(int width, int height, int radius, int Imax, int* result_center
 
 //multi test—p
 __global__ void
-de_filter2DTest(int width, int height, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texGX, float** CxDx2, size_t pitchI1, size_t pitchF1, int n, size_t pitchF4, float4* CxDx1)
+de_filter2DTest(int width_, int height_, int radius, int Imax, int* result_center, cudaTextureObject_t texF, cudaTextureObject_t* texGX, float** CxDx2, size_t pitchI1, size_t pitchF1, int n, size_t pitchF4, float4* CxDx1)
 {
 	int x = blockIdx.x;
-	if (x >= width)
+	if (x >= width_)
 		return;
 	int tid = threadIdx.x;
 	if (tid >= radius * 2 + 1)
@@ -2939,7 +2939,7 @@ de_filter2DTest(int width, int height, int radius, int Imax, int* result_center,
 	__syncthreads();
 
 	//2s–ÚˆÈ~‚Ìˆ—
-	for (int y = 1; y < height; y++)
+	for (int y = 1; y < height_; y++)
 	{
 		//g3
 
@@ -3114,14 +3114,14 @@ void cu_filter2DTest(SizeInfo& sizeInfo, cudaStream_t stream, int radius, int Im
 	TextureArray<int> texF = TextureArray<int>(f, filterMode, sizeInfo);
 
 	//c•ûŒü”Å shared
-	int blockSize = radius * 2 + 1;
-	int gridSizeX = sizeInfo.width;
+	int blockSize_ = radius * 2 + 1;
+	int gridSizeX = sizeInfo.width_;
 	int n = g->arrayLength;
 	int m = f->arrayLength;
 	for (int i = 0; i < m; i++)
 	{
 		std::cout << "<" << i << ">" << std::endl;
-		de_filter2DTest << <gridSizeX, blockSize, (Imax + 1) * sizeof(int) * (n + 1) + Imax * sizeof(int) * 4, NULL >> > (sizeInfo.width, sizeInfo.height, radius, Imax, result_center->host[i], texF.host[i], texG.device, cxdx2->device, sizeInfo.pitch<int>(), sizeInfo.pitch<float>(), n, sizeInfo.pitch<float4>(), cxdx);
+		de_filter2DTest << <gridSizeX, blockSize_, (Imax + 1) * sizeof(int) * (n + 1) + Imax * sizeof(int) * 4, NULL >> > (sizeInfo.width_, sizeInfo.height_, radius, Imax, result_center->host[i], texF.host[i], texG.device, cxdx2->device, sizeInfo.pitch<int>(), sizeInfo.pitch<float>(), n, sizeInfo.pitch<float4>(), cxdx);
 		//		Utility::showDevice(f->host[i], sizeInfo, "in", false, 255);
 		/*
 		if (i == 2)

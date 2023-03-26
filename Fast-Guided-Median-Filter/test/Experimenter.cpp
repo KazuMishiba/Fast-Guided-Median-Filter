@@ -1,8 +1,275 @@
 #include "Experimenter.h"
-
+#include "FGMF_CPU_O1.h"
+#include "FGMF_GPU_Or_ver0.h"
 
 #define debugTest false
 #define debugTestScaling false
+
+
+
+void showImageWithConvert(std::string name, cv::Mat mat)
+{
+	cv::Mat dst;
+	mat.convertTo(dst, CV_8U);
+	cv::imshow(name, dst);
+}
+
+
+
+//#define REFACTORING_TEST_MODE_I1G1
+//#define REFACTORING_TEST_MODE_I1G3
+//#define REFACTORING_TEST_MODE_I3G1
+//#define REFACTORING_TEST_MODE_I3G3
+#define REFACTORING_TEST_MODE_MULTI
+
+//リファクタリング用
+void Experimenter::forRefactoring(std::string filePathSrc, std::string filePathGuide)
+{
+//	pitchTest();
+//	return;
+
+
+	bool showResult = true;
+
+	const int loopNum = 1;
+
+	float eps2 = 25.5f * 25.5f;
+	int Imax = 256;
+	//int threadNum = 1;
+	int threadNum = omp_get_num_procs();
+	const int r = 5;
+
+	const cv::Size sz = cv::Size(128 * 1, 128 * 1);
+	//const cv::Size sz = cv::Size(1920*1, 1080*1);
+	//ConvertImageFlag convertFlag = { false, true, false, false, true, false, false, true, true, false, false };
+	ConvertImageFlag convertFlag = { true, true, true, true, true, true, true, true, true, true, true };
+	this->image = new Container_Image(filePathSrc, filePathGuide, convertFlag);
+	this->image->load(true, sz);
+
+	std::cout << "h*w= " << sz.height << "×" << sz.width << std::endl;
+	double time_CPUO1_beforeRefactoring = 0.0;
+	double time_CPUO1_afterRefactoring = 0.0;
+	double time_GPUOr_beforeRefactoring = 0.0;
+	double time_GPUOr_afterRefactoring = 0.0;
+	std::cout << "Radius: " << r << std::endl;
+
+	dim3 blockSize = dim3(BLOCK_SIZE_2D, BLOCK_SIZE_2D, 1);
+	SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width, this->image->imageSize.height, Imax, blockSize);
+
+	std::chrono::system_clock::time_point start, end;
+
+	bool performPropCPUO1 = false;
+	bool performPropGPUOr = true;
+
+	cv::Mat resultBeforeRefactoring;
+	cv::Mat resultAfterRefactoring;
+
+	/*
+	std::vector<cv::Mat> channels;
+	channels.push_back(this->image->G32);
+	channels.push_back(this->image->G32);
+	channels.push_back(this->image->G32);
+	cv::merge(channels, this->image->G32_color);
+	*/
+	/*
+	std::vector<cv::Mat> f_singles;
+	cv::split(this->image->I32_color, f_singles);
+	this->image->I32 = f_singles[0];
+	*/
+
+	//CPU-O(1)
+	if (performPropCPUO1)
+	{
+#if 1
+		start = std::chrono::system_clock::now();
+		for (int j = 0; j < loopNum; j++)
+		{
+#if defined(REFACTORING_TEST_MODE_I1G1)
+			resultAfterRefactoring = FGMF_CPU_O1::filter_2d(this->image->I32, this->image->G32, r, eps2, Imax, threadNum);
+#elif defined(REFACTORING_TEST_MODE_I1G3)
+			resultAfterRefactoring = FGMF_CPU_O1::filter_2d(this->image->I32, this->image->G32_color, threadNum, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G1)
+			resultAfterRefactoring = FGMF_CPU_O1::filter_2d(this->image->I32_color, this->image->G32, threadNum, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G3)
+			resultAfterRefactoring = FGMF_CPU_O1::filter_2d(this->image->I32_color, this->image->G32_color, threadNum, r, eps2, Imax);
+#endif
+		}
+		end = std::chrono::system_clock::now();
+		time_CPUO1_afterRefactoring += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		std::cout << "Prop Win (after refactoring): ";
+		std::cout << time_CPUO1_afterRefactoring << " [ms] / " << loopNum << "[times]" << std::endl;
+#endif
+
+
+
+
+
+		start = std::chrono::system_clock::now();
+		for (int j = 0; j < loopNum; j++)
+		{
+#if defined(REFACTORING_TEST_MODE_I1G1)
+			resultBeforeRefactoring = FGMF2::filter2DInterface(this->image->I32, this->image->G32, threadNum, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I1G3)
+			resultBeforeRefactoring = FGMF2::filter2DInterface(this->image->I32, this->image->G32_color, threadNum, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G1)
+			resultBeforeRefactoring = FGMF2::filter2DInterface(this->image->I32_color, this->image->G32, threadNum, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G3)
+			resultBeforeRefactoring = FGMF2::filter2DInterface(this->image->I32_color, this->image->G32_color, threadNum, r, eps2, Imax);
+#endif
+		}
+		end = std::chrono::system_clock::now();
+		time_CPUO1_beforeRefactoring += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		std::cout << "Prop Win: ";
+		std::cout << time_CPUO1_beforeRefactoring << " [ms] / " << loopNum << "[times]" << std::endl;
+
+
+		if (showResult)
+		{
+			showImageWithConvert("before", resultBeforeRefactoring);
+			showImageWithConvert("after", resultAfterRefactoring);
+			showImageWithConvert("dif", cv::abs((resultAfterRefactoring - resultBeforeRefactoring)*100));
+			cv::waitKey(0);
+		}
+	}
+
+	//GPU-O(r)
+	if (performPropGPUOr)
+	{
+		//ウォームアップコード
+		for (int i = 0; i < 10; i++)
+		{
+			FGMF3::filter2DGPU(this->image->I_device, this->image->G_device, this->image->result_device, r, eps2, Imax, sizeInfo);
+		}
+
+
+
+		//リファクタリング前
+		start = std::chrono::system_clock::now();
+		for (int j = 0; j < loopNum; j++)
+		{
+#if defined(REFACTORING_TEST_MODE_I1G1)
+			FGMF3::filter2DGPU(this->image->I_device, this->image->G_device, this->image->result_device, r, eps2, Imax, sizeInfo);
+#elif defined(REFACTORING_TEST_MODE_I1G3)
+			FGMF3::filter2DGPU(this->image->I_device, this->image->G_device_color, this->image->result_device, r, eps2, Imax, sizeInfo);
+#elif defined(REFACTORING_TEST_MODE_I3G1)
+			FGMF3::filter2DGPU(this->image->I_device_color, this->image->G_device, this->image->result_device_color, r, eps2, Imax, sizeInfo);
+#elif defined(REFACTORING_TEST_MODE_I3G3)
+			FGMF3::filter2DGPU(this->image->I_device_color, this->image->G_device_color, this->image->result_device_color, r, eps2, Imax, sizeInfo);
+#elif defined(REFACTORING_TEST_MODE_MULTI)
+			FGMF3::filter2DGPU_MultiChannel(this->image->I_device_color, this->image->G_device_color, this->image->result_device_color, r, eps2, Imax, sizeInfo);
+#endif
+		}
+		end = std::chrono::system_clock::now();
+		time_GPUOr_beforeRefactoring += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		std::cout << "Prop GPU: ";
+		std::cout << time_GPUOr_beforeRefactoring << " [ms] / " << loopNum << "[times]" << std::endl;
+
+#if defined(REFACTORING_TEST_MODE_I1G1) || defined(REFACTORING_TEST_MODE_I1G3)
+		resultBeforeRefactoring = UtilityForCUDA::downloadLinearArrayAsMat(this->image->result_device, sizeInfo);
+#else
+		resultBeforeRefactoring = UtilityForCUDA::downloadLinearArrayAsMat(this->image->result_device_color, sizeInfo);
+#endif
+
+		//リファクタリング後
+		start = std::chrono::system_clock::now();
+		for (int j = 0; j < loopNum; j++)
+		{
+#if defined(REFACTORING_TEST_MODE_I1G1)
+			//resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d(this->image->I32, this->image->G32, r, eps2, Imax);
+			resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d(this->image->I32, this->image->G32, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I1G3)
+			resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d(this->image->I32, this->image->G32_color, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G1)
+			resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d(this->image->I32_color, this->image->G32, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_I3G3)
+			resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d(this->image->I32_color, this->image->G32_color, r, eps2, Imax);
+#elif defined(REFACTORING_TEST_MODE_MULTI)
+			resultAfterRefactoring = FGMF_GPU_Or_ver0::filter_2d_multichannel(this->image->I32_color, this->image->G32_color, r, eps2, Imax);
+#endif
+		}
+		end = std::chrono::system_clock::now();
+		time_GPUOr_afterRefactoring += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		std::cout << "Prop GPU (after refactoring): ";
+		std::cout << time_GPUOr_afterRefactoring << " [ms] / " << loopNum << "[times]" << std::endl;
+
+		/*
+#if defined(REFACTORING_TEST_MODE_I1G1) || defined(REFACTORING_TEST_MODE_I1G3)
+		resultAfterRefactoring = UtilityForCUDA::downloadLinearArrayAsMat(this->image->result_device, sizeInfo);
+#else
+		resultAfterRefactoring = UtilityForCUDA::downloadLinearArrayAsMat(this->image->result_device_color, sizeInfo);
+#endif
+*/
+		/*
+		cv::Mat mat1, mat2;
+		resultBeforeRefactoring.convertTo(mat1, CV_8S);
+		resultAfterRefactoring.convertTo(mat2, CV_8S);
+
+		for (int y = 0; y < mat1.rows; ++y) {
+			for (int x = 0; x < mat1.cols; ++x) {
+				// mat1とmat2の(y, x)番目の要素を比較します
+				if (mat1.at<unsigned char>(y, x) != mat2.at<unsigned char>(y, x)) {
+					std::cout << "mat1とmat2の(y, x) = (" << y << ", " << x << ")番目の要素は異なります" << std::endl;
+					std::cout << "mat1の(y, x)番目の要素の値: " << (int)mat1.at<unsigned char>(y, x) << std::endl;
+					std::cout << "mat2の(y, x)番目の要素の値: " << (int)mat2.at<unsigned char>(y, x) << std::endl;
+				}
+			}
+		}
+		*/
+
+		if (showResult)
+		{
+			showImageWithConvert("before", resultBeforeRefactoring);
+			showImageWithConvert("after", resultAfterRefactoring);
+			showImageWithConvert("dif", cv::abs((resultAfterRefactoring - resultBeforeRefactoring) * 100));
+			cv::waitKey(0);
+		}
+
+	}
+
+	/*
+	std::chrono::system_clock::time_point  start, end; // 型は auto で可
+	start = std::chrono::system_clock::now(); // 計測開始時間
+	gmf_gpu.filterWithConstantTime(this->I32, this->G32F, r, eps2, Imax);
+	end = std::chrono::system_clock::now();  // 計測終了時間
+	time4 += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //処理に要した時間をミリ秒に変換
+	*/
+	//cu_memoryInfo();
+
+
+	/*
+	gmf_gpu.prepareMemory(this->I32, this->G32F);
+	gmf_gpu.filter();
+	gmf_gpu.clearMemory();
+	*/
+
+
+	if (showResult)
+	{
+		showImageWithConvert("input gray", this->image->I32_color);
+		showImageWithConvert("guide gray", this->image->G32_color);
+	}
+
+	// 絶対値差を計算する
+	cv::Mat diff;
+	cv::absdiff(resultBeforeRefactoring, resultAfterRefactoring, diff);
+
+	// 絶対値差の絶対値和を計算する
+	double sum = 0;
+	if (diff.channels() == 1) {
+		// チャンネル数が1の場合
+		sum = cv::sum(diff)[0];
+	}
+	else if (diff.channels() == 3) {
+		// チャンネル数が3の場合
+		sum = cv::sum(diff)[0] + cv::sum(diff)[1] + cv::sum(diff)[2];
+	}
+	else {
+		std::cout << "Error: Invalid number of channels" << std::endl;
+	}
+
+	std::cout << "Sum of absolute differences: " << sum << std::endl;
+}
+
 
 
 
@@ -800,7 +1067,7 @@ void Experimenter::speedTest2D8bitForPaper()
 			//一方でガイデッドフィルタの論文ではボックスフィルタの半径をフィルタの半径と呼んでいるっぽいので、そのまま使う
 			//cu_memoryInfo();
 			//constant time の実行
-			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width, this->image->imageSize.height, Imax, blockSize);
+			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width_, this->image->imageSize.height_, Imax, blockSize_);
 
 			//グレースケール（入力・ガイド共に）
 			start = std::chrono::system_clock::now();//タイマー作動
@@ -897,7 +1164,7 @@ void Experimenter::speedTest2D8bitForPaper()
 
 #ifdef SpeedTestPropGPU
 			//提案法GPU（1D sliding window）の実行
-			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width, this->image->imageSize.height, Imax, blockSize);
+			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width_, this->image->imageSize.height_, Imax, blockSize_);
 
 			//Utility::showDevice(this->image->I_device, sizeInfo, "input", false, 256, false);
 
@@ -937,7 +1204,7 @@ void Experimenter::speedTest2D8bitForPaper()
 	writing_file << methodName << std::endl;
 
 #ifdef performRadiusChange
-	writing_file << "Size = (" << sz.width << ", " << sz.height << "), Radius = ";
+	writing_file << "Size = (" << sz.width_ << ", " << sz.height_ << "), Radius = ";
 	for (int i = 0; i < rs.size(); i++)
 	{
 		writing_file << rs[i] << ",";
@@ -1060,7 +1327,7 @@ void Experimenter::speedTest2DHigherBitForPaper()
 			//手法実行
 #ifdef HigherBitTestConstantTime
 			//constant time の実行
-			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width, this->image->imageSize.height, Imax, blockSize);
+			SizeInfo sizeInfo = SizeInfo(this->image->imageSize.width_, this->image->imageSize.height_, Imax, blockSize_);
 
 			start = std::chrono::system_clock::now();//タイマー作動
 			ConstantTimeWMF::filter2DGPU(this->image->I_device, this->image->G_deviceF, this->image->result_device, r, eps2, Imax, sizeInfo);

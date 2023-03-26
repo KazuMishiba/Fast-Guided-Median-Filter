@@ -20,7 +20,7 @@
 
 namespace FGMF_CPU_O1
 {
-	cv::Mat filter_2d(cv::Mat& f_img, cv::Mat& g_img, int radius, float eps2, int fRange, int threadNum = omp_get_num_procs());
+	cv::Mat filter_2d(cv::Mat& f_img, cv::Mat& g_img, int threadNum, int radius, float eps2, int num_level);
 
 
 	template <typename G_TYPE>
@@ -38,13 +38,13 @@ namespace FGMF_CPU_O1
 		int g_sum_;
 		int gg_sum_;
 
-		void addG(int* g_x)
+		void addG(const int* g_x)
 		{
 			numPixels_++;
 			g_sum_ += *g_x;
 			gg_sum_ += (*g_x) * (*g_x);
 		}
-		void removeG(int* g_x)
+		void removeG(const int* g_x)
 		{
 			numPixels_--;
 			g_sum_ -= *g_x;
@@ -75,7 +75,7 @@ namespace FGMF_CPU_O1
 		int numPixels_;
 		cv::Vec3i g_sum_;
 		std::array<int, 6> gg_sum_;
-		void addG(cv::Vec3i* g_x)
+		void addG(const cv::Vec3i* g_x)
 		{
 			numPixels_++;
 			g_sum_ += *g_x;
@@ -86,7 +86,7 @@ namespace FGMF_CPU_O1
 			gg_sum_[4] += (*g_x)[1] * (*g_x)[2];
 			gg_sum_[5] += (*g_x)[2] * (*g_x)[2];
 		}
-		void removeG(cv::Vec3i* g_x)
+		void removeG(const cv::Vec3i* g_x)
 		{
 			numPixels_--;
 			g_sum_ -= *g_x;
@@ -125,15 +125,15 @@ namespace FGMF_CPU_O1
 	class Window
 	{
 	public:
-		Window(int fRange)
+		Window(const int num_level)
 			: f_cum_{ 0 },
 			g_cum_(0),
 			k_{ -1 }
 		{
-			storeFG_ = (int*)_aligned_malloc(fRange * (sizeof(int) + sizeof(G_TYPE)), MEMORY_ALIGNMENT);
-			memset(storeFG_, 0, fRange * (sizeof(int) + sizeof(G_TYPE)));
+			storeFG_ = (int*)_aligned_malloc(num_level * (sizeof(int) + sizeof(G_TYPE)), MEMORY_ALIGNMENT);
+			memset(storeFG_, 0, num_level * (sizeof(int) + sizeof(G_TYPE)));
 			F_ = storeFG_;
-			G_ = reinterpret_cast<G_TYPE*>(&storeFG_[fRange]);
+			G_ = reinterpret_cast<G_TYPE*>(&storeFG_[num_level]);
 		}
 		int* storeFG_;
 		int* F_;
@@ -142,8 +142,8 @@ namespace FGMF_CPU_O1
 		G_TYPE g_cum_;
 		int k_;
 
-		void addG(G_TYPE* g_x) {};
-		void removeG(G_TYPE* g_x) {};
+		void addG(const G_TYPE* g_x) {};
+		void removeG(const G_TYPE* g_x) {};
 		void mergeG(Window<G_TYPE>& W) {};
 		void separateG(Window<G_TYPE>& W) {};
 
@@ -157,13 +157,13 @@ namespace FGMF_CPU_O1
 	class Window_calc_cd : public Window<G_TYPE>
 	{
 	public:
-		Window_calc_cd<G_TYPE>(int num_level)
+		Window_calc_cd<G_TYPE>(const int num_level)
 			: Window<G_TYPE>(num_level)
 		{
 		};
 		DataForC_D<G_TYPE> dataForC_D_;
-		void addG(G_TYPE* g_x);
-		void removeG(G_TYPE* g_x);
+		void addG(const G_TYPE* g_x);
+		void removeG(const G_TYPE* g_x);
 		void mergeG(Window_calc_cd<G_TYPE>& W);
 		void separateG(Window_calc_cd<G_TYPE>& W);
 
@@ -178,8 +178,8 @@ namespace FGMF_CPU_O1
 	class WMF
 	{
 	public:
-		WMF(cv::Mat& f_img, cv::Mat& g_img, int radius, float eps2, int fRange, int threadNum)
-			: f_img_(f_img), g_img_(g_img), threadNum_(threadNum), radius_(radius), eps2_(eps2), fRange_(fRange) , M_(f_img.rows), N_(f_img.cols), p_(radius), m_(radius + 1), channelNum_f_(f_img_.channels()), channelNum_g_(g_img_.channels())
+		WMF(cv::Mat& f_img, cv::Mat& g_img, int threadNum, int radius, float eps2, int Imax)
+			: f_img_(f_img), g_img_(g_img), threadNum_(threadNum), radius_(radius), eps2_(eps2), Imax_(Imax) , M_(f_img.rows), N_(f_img.cols), p_(radius), m_(radius + 1), channelNum_f_(f_img_.channels()), channelNum_g_(g_img_.channels())
 		{
 			//check validation
 			assert(f_img_.depth() == CV_32S || f_img_.depth() == CV_8U);
@@ -189,7 +189,7 @@ namespace FGMF_CPU_O1
 			if (g_img_.depth() != CV_32S)
 				g_img_.convertTo(g_img_, CV_32S);
 #if defined(USE_AVX2)
-			assert(fRange % 8 == 0);
+			assert(Imax % 8 == 0);
 #endif
 
 
@@ -204,38 +204,38 @@ namespace FGMF_CPU_O1
 		cv::Mat apply_2d_filter();
 
 		template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-		void filtering(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result);
+		void filtering(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result);
 		template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-		void filteringBlock(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result, int tStart_target, int tEnd_target);
+		void filteringBlock(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result, const int tStart_target, const int tEnd_target);
 		template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-		void filteringBlockHorizontal(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result, int tStart_target, int tEnd_target);
+		void filteringBlockHorizontal(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result, const int tStart_target, const int tEnd_target);
 
 
 		static void test();
 
 	private:
-		cv::Mat f_img_;
-		cv::Mat g_img_;
-		int threadNum_;
-		int radius_;
-		float eps2_;
-		int fRange_;
+		const cv::Mat f_img_;
+		const cv::Mat g_img_;
+		const int threadNum_;
+		const int radius_;
+		const float eps2_;
+		const int Imax_;
 		cv::Mat c_;
 		cv::Mat d_;
 
-		int M_; // Image height
-		int N_; // Image width
-		int channelNum_f_; // Input image channel num
-		int channelNum_g_; // Guide image channel num
-		int p_; // x^+ = x + r = x + p_
-		int m_; // x^- = x - r - 1 = x + m_
+		const int M_; // Image height
+		const int N_; // Image width
+		const int channelNum_f_; // Input image channel num
+		const int channelNum_g_; // Guide image channel num
+		const int p_; // x^+ = x + r = x + p_
+		const int m_; // x^- = x - r - 1 = x + m_
 
 
 		template<typename WINDOW, typename G_TYPE>
-		void addPixelToWindow(int* f_x, G_TYPE* g_x, WINDOW& W);
+		void addPixelToWindow(const int* f_x, const G_TYPE* g_x, WINDOW& W);
 
 		template<typename WINDOW, typename G_TYPE>
-		void removePixelFromWindow(int* f_x, G_TYPE* g_x, WINDOW& W);
+		void removePixelFromWindow(const int* f_x, const G_TYPE* g_x, WINDOW& W);
 
 		template<typename WINDOW, typename G_TYPE>
 		void mergeWindow(WINDOW& W1, WINDOW& W2);
@@ -244,17 +244,17 @@ namespace FGMF_CPU_O1
 		void separateWindow(WINDOW& W1, WINDOW& W2);
 		
 		template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-		int searchWeightedMedian(G_TYPE& g_x, WINDOW& W, C_TYPE& c_x, float& d_x);
+		int searchWeightedMedian(const G_TYPE* g_x, WINDOW& W, C_TYPE* c_x, float* d_x);
 
 		template<typename G_TYPE, typename C_TYPE>
-		float calculateHcum(int& f_cum, G_TYPE& g_cum, C_TYPE& c_x, float& d_x);
+		float calculateHcum(int& f_cum, G_TYPE& g_cum, C_TYPE* c_x, float* d_x);
 		
 		template<typename WINDOW, typename C_TYPE, typename G_TYPE>
-		void calculateCandD(G_TYPE& g_x, WINDOW& W, C_TYPE& c_x, float& d_x);
+		void calculateCandD(const G_TYPE* g_x, WINDOW& W, C_TYPE* c_x, float* d_x);
 
 
 		template<typename WINDOW, typename C_TYPE, typename G_TYPE>
-		void debugging(int s, int t, WINDOW& W, C_TYPE* c, float* d, cv::Mat& f, cv::Mat& g);
+		void debugging(int s, int t, WINDOW& W, C_TYPE* c, float* d, const cv::Mat& f, const cv::Mat& g);
 	};
 
 

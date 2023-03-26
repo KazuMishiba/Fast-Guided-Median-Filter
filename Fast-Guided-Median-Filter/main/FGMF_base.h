@@ -1696,3 +1696,27 @@ inline void findMedian(CTYPE& cx, float& dx, const GSUM& gSum_window, const floa
 	calculateCxDx(gSum_window, pixel_sum_window_inv, eps2, G_center, cx, dx);
 	findMedian(cx, dx, half, histo_window, result_center);
 }
+
+inline void debugging(int x, int y, gSum& gSum_window, int pixel_sum_window, fg* histo_window, fgSumUpToIndex& sumUpToIndex_window, int& result_center, float cx, float dx) {
+}
+
+inline void debugging(int x, int y, g3Sum& gSum_window, int pixel_sum_window, fg3* histo_window, fg3SumUpToIndex& sumUpToIndex_window, int& result_center, cv::Vec3f cx, float dx) {
+	std::ofstream file("original.txt", std::ios::app);
+
+	file << "(" << x << "," << y << ") : ";
+	file << "W.k " << sumUpToIndex_window.index;
+	file << " calc(c,d)=(" << cx << "," << dx << ") ";
+	file << " g_sum=" << cv::Vec3i(gSum_window.g1, gSum_window.g2, gSum_window.g3);
+	file << " gg_sum=";
+	file << gSum_window.g1g1;
+	file << gSum_window.g1g2;
+	file << gSum_window.g1g3;
+	file << gSum_window.g2g2;
+	file << gSum_window.g2g3;
+	file << gSum_window.g3g3;
+
+	file << std::endl;
+
+	file.close();
+
+}

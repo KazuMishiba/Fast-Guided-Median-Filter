@@ -12,6 +12,10 @@
     <CudaCompile Include="main\CxDxPrecalculation.cu" />
     <CudaCompile Include="main\FGMF_type3.cu" />
     <CudaCompile Include="conv\GuidedFilter.cu" />
+    <CudaCompile Include="refactoring\CalculateC_D_ver0.cu" />
+    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver0.cu" />
+    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver2.cu" />
+    <CudaCompile Include="refactoring\CalculateC_D_ver2.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="conv\ConstantTimeWMF.cpp" />
@@ -28,6 +32,8 @@
     <ClCompile Include="test\save.cpp" />
     <ClCompile Include="main\Utility.cpp" />
     <ClCompile Include="refactoring\FGMF_CPU_O1.cpp" />
+    <ClCompile Include="refactoring\FGMF_GPU_Or_ver0.cpp" />
+    <ClCompile Include="refactoring\FGMF_GPU_Or_ver2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main\boxFilter.cuh" />
@@ -53,5 +59,12 @@
     <ClInclude Include="main\Utility.cuh" />
     <ClInclude Include="main\Utility.h" />
     <ClInclude Include="refactoring\FGMF_CPU_O1.h" />
+    <ClInclude Include="refactoring\Helper.h" />
+    <ClInclude Include="refactoring\CalculateC_D_ver0.cuh" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.cuh" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.h" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.cuh" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.h" />
+    <ClInclude Include="refactoring\CalculateC_D_ver2.cuh" />
   </ItemGroup>
 </Project>

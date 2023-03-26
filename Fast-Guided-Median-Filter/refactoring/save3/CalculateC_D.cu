@@ -1,4 +1,7 @@
-#include "CxDxPrecalculation.cuh"
+#include "CalculateC_D.cuh"
+
+namespace FGMF_GPU_Or
+{
 
 //境界拡張版
 __global__ void
@@ -167,7 +170,7 @@ de_gXsum_x(int width, int height, int radius, int** sumG, int** sumGG, cudaTextu
 	if (y >= height)
 		return;
 
-	const int m = (n + 1)*n / 2;
+	int m = (n + 1)*n / 2;
 	int *g = new int[n];
 	int *_g = new int[n];
 	int *sumg = new int[n];
@@ -235,7 +238,7 @@ de_gXsum_y(int width, int height, int radius, int** sumG, int** sumGG, cudaTextu
 	if (x >= width)
 		return;
 
-	const int m = (n + 1)*n / 2;
+	int m = (n + 1)*n / 2;
 	int *sumg = new int[n];
 	for (int i = 0; i < n; i++)
 		sumg[i] = 0;
@@ -276,31 +279,10 @@ de_gXsum_y(int width, int height, int radius, int** sumG, int** sumGG, cudaTextu
 }
 
 
-//refactoring用cx,dx float2ではなくDeviceArray<float>* cxdx
-__global__ void
-de_calculateCxDx(int width, int height, int* G, int2* sumG, float eps2, float pixel_sum_window_inv, float** cxdx, size_t pitchI1, size_t pitchI2, size_t pitchF1)
-{
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	if (x < 0 || x >= width || y < 0 || y >= height)
-		return;
-
-	int2 tmp = *((int2*)((char*)sumG + y * pitchI2) + x);
-	int g = *((int*)((char*)G + y * pitchI1) + x);
-	float g_ave = ((float)tmp.x) * pixel_sum_window_inv;
-	float gg_ave = ((float)tmp.y) * pixel_sum_window_inv;
-	float vx = gg_ave - g_ave * g_ave + eps2;
-	float tmp2 = ((float)g) - g_ave;
-	float cx2 = tmp2 * pixel_sum_window_inv / vx;
-	//*((float2*)((char*)cxdx + y * pitchF2) + x) = make_float2(cx2, pixel_sum_window_inv - g_ave * cx2);
-	*((float*)((char*)cxdx[0] + y * pitchF1) + x) = cx2;
-	*((float*)((char*)cxdx[1] + y * pitchF1) + x) = pixel_sum_window_inv - g_ave * cx2;
-}
-
 
 //cx,dx float2
 __global__ void
-de_calculateCxDx(int width, int height, int* G, int2* sumG, float eps2, float pixel_sum_window_inv, float2* cxdx, size_t pitchI1, size_t pitchI2, size_t pitchF2)
+de_calculateDC(int width, int height, int* G, int2* sumG, float eps2, float pixel_sum_window_inv, float2* dxcx, size_t pitchI1, size_t pitchI2, size_t pitchF2)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -314,27 +296,27 @@ de_calculateCxDx(int width, int height, int* G, int2* sumG, float eps2, float pi
 	float vx = gg_ave - g_ave * g_ave + eps2;
 	float tmp2 = ((float)g) - g_ave;
 	float cx2 = tmp2 * pixel_sum_window_inv / vx;
-	*((float2*)((char*)cxdx + y * pitchF2) + x) = make_float2(cx2, pixel_sum_window_inv - g_ave * cx2);
+	*((float2*)((char*)dxcx + y * pitchF2) + x) = make_float2(pixel_sum_window_inv - g_ave * cx2, cx2);
 }
 //cx3
 __global__ void
-de_calculateCx3Dx(int width, int height, int** G3, int** sumG, int** sumGG, float eps2, float pixel_sum_window_inv, float4* cxdx, size_t pitchI1, size_t pitchF4)
+de_calculateCx3Dx(int width, int height, int** G3, int** sumG, int** sumGG, float eps2, float pixel_sum_window_inv, float4* dxcx, size_t pitchI1, size_t pitchF4)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x < 0 || x >= width || y < 0 || y >= height)
 		return;
 
-	const float g_ave1 = *((int*)((char*)sumG[0] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float g_ave2 = *((int*)((char*)sumG[1] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float g_ave3 = *((int*)((char*)sumG[2] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float v11 = *((int*)((char*)sumGG[0] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave1 + eps2;
-	const float v12 = *((int*)((char*)sumGG[1] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave2;
-	const float v13 = *((int*)((char*)sumGG[2] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave3;
-	const float v22 = *((int*)((char*)sumGG[3] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave2 + eps2;
-	const float v23 = *((int*)((char*)sumGG[4] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave3;
-	const float v33 = *((int*)((char*)sumGG[5] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave3 * g_ave3 + eps2;
-	const float delta =
+	float g_ave1 = *((int*)((char*)sumG[0] + y * pitchI1) + x) * pixel_sum_window_inv;
+	float g_ave2 = *((int*)((char*)sumG[1] + y * pitchI1) + x) * pixel_sum_window_inv;
+	float g_ave3 = *((int*)((char*)sumG[2] + y * pitchI1) + x) * pixel_sum_window_inv;
+	float v11 = *((int*)((char*)sumGG[0] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave1 + eps2;
+	float v12 = *((int*)((char*)sumGG[1] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave2;
+	float v13 = *((int*)((char*)sumGG[2] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave3;
+	float v22 = *((int*)((char*)sumGG[3] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave2 + eps2;
+	float v23 = *((int*)((char*)sumGG[4] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave3;
+	float v33 = *((int*)((char*)sumGG[5] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave3 * g_ave3 + eps2;
+	float delta =
 		v11 * v22 * v33 +
 		v12 * v23 * v13 * 2 -
 		v13 * v13 * v22 -
@@ -342,57 +324,43 @@ de_calculateCx3Dx(int width, int height, int** G3, int** sumG, int** sumGG, floa
 		v11 * v23 * v23;
 	if (abs(delta) > 0.000001f)
 	{
-		const float deltaInv = 1.0f / delta;
-		const float vinv11 = (v22 * v33 - v23 * v23);
-		const float vinv12 = (v13 * v23 - v12 * v33);
-		const float vinv13 = (v12 * v23 - v13 * v22);
-		const float vinv22 = (v11 * v33 - v13 * v13);
-		const float vinv23 = (v13 * v12 - v11 * v23);
-		const float vinv33 = (v11 * v22 - v12 * v12);
-		const float tmp1 = *((int*)((char*)G3[0] + y * pitchI1) + x) - g_ave1;
-		const float tmp2 = *((int*)((char*)G3[1] + y * pitchI1) + x) - g_ave2;
-		const float tmp3 = *((int*)((char*)G3[2] + y * pitchI1) + x) - g_ave3;
-		const float mult = pixel_sum_window_inv * deltaInv;
-		const float cx1 = (tmp1 * vinv11 + tmp2 * vinv12 + tmp3 * vinv13) * mult;
-		const float cx2 = (tmp1 * vinv12 + tmp2 * vinv22 + tmp3 * vinv23) * mult;
-		const float cx3 = (tmp1 * vinv13 + tmp2 * vinv23 + tmp3 * vinv33) * mult;
-		const float dx = pixel_sum_window_inv - g_ave1 * cx1 - g_ave2 * cx2 - g_ave3 * cx3;
+		float deltaInv = 1.0f / delta;
+		float vinv11 = (v22 * v33 - v23 * v23);
+		float vinv12 = (v13 * v23 - v12 * v33);
+		float vinv13 = (v12 * v23 - v13 * v22);
+		float vinv22 = (v11 * v33 - v13 * v13);
+		float vinv23 = (v13 * v12 - v11 * v23);
+		float vinv33 = (v11 * v22 - v12 * v12);
+		float tmp1 = *((int*)((char*)G3[0] + y * pitchI1) + x) - g_ave1;
+		float tmp2 = *((int*)((char*)G3[1] + y * pitchI1) + x) - g_ave2;
+		float tmp3 = *((int*)((char*)G3[2] + y * pitchI1) + x) - g_ave3;
+		float mult = pixel_sum_window_inv * deltaInv;
+		float cx1 = (tmp1 * vinv11 + tmp2 * vinv12 + tmp3 * vinv13) * mult;
+		float cx2 = (tmp1 * vinv12 + tmp2 * vinv22 + tmp3 * vinv23) * mult;
+		float cx3 = (tmp1 * vinv13 + tmp2 * vinv23 + tmp3 * vinv33) * mult;
+		float dx = pixel_sum_window_inv - g_ave1 * cx1 - g_ave2 * cx2 - g_ave3 * cx3;
 
-		*((float4*)((char*)cxdx + y * pitchF4) + x) = make_float4(cx1, cx2, cx3, dx);
+		*((float4*)((char*)dxcx + y * pitchF4) + x) = make_float4(dx, cx1, cx2, cx3);
 	}
 	else
 	{
 		//逆行列が存在しないので、cx=0, dx=画素数の逆数とする
-		*((float4*)((char*)cxdx + y * pitchF4) + x) = make_float4(0.0f, 0.0f, 0.0f, pixel_sum_window_inv);
-		//printf("%f\n", delta);
+		*((float4*)((char*)dxcx + y * pitchF4) + x) = make_float4(pixel_sum_window_inv, 0.0f, 0.0f, 0.0f);
 	}
-	/*
-	if (x == 50 && y == 50)
-	{
-		printf("g3\n");
-		printf("%f %f %f\n", g_ave1, g_ave2, g_ave3);
-
-		printf("%f %f %f %f %f %f\n", v11, v12, v13, v22, v23, v33);
-		printf("%f %f %f %f\n", cx1/pixel_sum_window_inv, cx2/ pixel_sum_window_inv, cx3/ pixel_sum_window_inv, dx);
-		printf("%f\n", pixel_sum_window_inv);
-
-	}
-	*/
 }
 //cxX
 __global__ void
-de_calculateCxXDx(int width, int height, int** GX, int** sumG, int** sumGG, float eps2, float pixel_sum_window_inv, float** cxdx, size_t pitchI1, size_t pitchF1, int n)
+de_calculateCxXDx(int width, int height, int** GX, int** sumG, int** sumGG, float eps2, float pixel_sum_window_inv, float** dxcx, size_t pitchI1, size_t pitchF1, int n)
 {
-	//cxdxの要素数はN+1 (cxがN、dxが1)
+	//dxcxの要素数はN+1 (cxがN、dxが1)
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x < 0 || x >= width || y < 0 || y >= height)
 		return;
 	
-#if 1
 
 
-	const int m = (n + 1)*n / 2;
+	int m = (n + 1)*n / 2;
 
 	float *g_ave = new float[n];
 	for (int i = 0; i < n; i++)
@@ -497,25 +465,23 @@ de_calculateCxXDx(int width, int height, int** GX, int** sumG, int** sumGG, floa
 		}
 
 		float dx = pixel_sum_window_inv;
+		*((float*)((char*)dxcx[0] + y * pitchF1) + x) = dx;
 		for (int i = 0; i < n; i++)
 		{
 			cx[i] *= pixel_sum_window_inv;
 			dx -= cx[i] * g_ave[i];
-			*((float*)((char*)cxdx[i] + y * pitchF1) + x) = cx[i];
-
+			*((float*)((char*)dxcx[i+1] + y * pitchF1) + x) = cx[i];
 		}
-		*((float*)((char*)cxdx[n] + y * pitchF1) + x) = dx;
 	}
 	else
 	{
 		//逆行列が存在しない場合
 		//cx全て０、dxは画素数の逆数（結果としては平均値フィルタカーネルと同じ）
+		*((float*)((char*)dxcx[0] + y * pitchF1) + x) = pixel_sum_window_inv;
 		for (int i = 0; i < n; i++)
 		{
-			*((float*)((char*)cxdx[i] + y * pitchF1) + x) = 0.0f;
-
+			*((float*)((char*)dxcx[i + 1] + y * pitchF1) + x) = 0.0f;
 		}
-		*((float*)((char*)cxdx[n] + y * pitchF1) + x) = pixel_sum_window_inv;
 	}
 
 	//if (isnan(cx[0]))
@@ -553,50 +519,6 @@ de_calculateCxXDx(int width, int height, int** GX, int** sumG, int** sumGG, floa
 	delete p;
 	delete Ap;
 
-#endif
-
-
-
-
-#if 0
-	const float g_ave1 = *((int*)((char*)sumG[0] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float g_ave2 = *((int*)((char*)sumG[1] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float g_ave3 = *((int*)((char*)sumG[2] + y * pitchI1) + x) * pixel_sum_window_inv;
-	const float v11 = *((int*)((char*)sumGG[0] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave1 + eps2;
-	const float v12 = *((int*)((char*)sumGG[1] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave2;
-	const float v13 = *((int*)((char*)sumGG[2] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave1 * g_ave3;
-	const float v22 = *((int*)((char*)sumGG[3] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave2 + eps2;
-	const float v23 = *((int*)((char*)sumGG[4] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave2 * g_ave3;
-	const float v33 = *((int*)((char*)sumGG[5] + y * pitchI1) + x) * pixel_sum_window_inv - g_ave3 * g_ave3 + eps2;
-	const float delta =
-		v11 * v22 * v33 +
-		v12 * v23 * v13 * 2 -
-		v13 * v13 * v22 -
-		v12 * v12 * v33 -
-		v11 * v23 * v23;
-	const float deltaInv = 1.0f / delta;
-	const float vinv11 = (v22 * v33 - v23 * v23);
-	const float vinv12 = (v13 * v23 - v12 * v33);
-	const float vinv13 = (v12 * v23 - v13 * v22);
-	const float vinv22 = (v11 * v33 - v13 * v13);
-	const float vinv23 = (v13 * v12 - v11 * v23);
-	const float vinv33 = (v11 * v22 - v12 * v12);
-	const float tmp1 = *((int*)((char*)GX[0] + y * pitchI1) + x) - g_ave1;
-	const float tmp2 = *((int*)((char*)GX[1] + y * pitchI1) + x) - g_ave2;
-	const float tmp3 = *((int*)((char*)GX[2] + y * pitchI1) + x) - g_ave3;
-	const float mult = pixel_sum_window_inv * deltaInv;
-	const float cx1 = (tmp1 * vinv11 + tmp2 * vinv12 + tmp3 * vinv13) * mult;
-	const float cx2 = (tmp1 * vinv12 + tmp2 * vinv22 + tmp3 * vinv23) * mult;
-	const float cx3 = (tmp1 * vinv13 + tmp2 * vinv23 + tmp3 * vinv33) * mult;
-	const float dx = pixel_sum_window_inv - g_ave1 * cx1 - g_ave2 * cx2 - g_ave3 * cx3;
-
-
-	*((float*)((char*)cxdx[0] + y * pitchF1) + x) = cx1;
-	*((float*)((char*)cxdx[1] + y * pitchF1) + x) = cx2;
-	*((float*)((char*)cxdx[2] + y * pitchF1) + x) = cx3;
-	*((float*)((char*)cxdx[3] + y * pitchF1) + x) = dx;
-
-#endif
 
 
 
@@ -651,62 +573,62 @@ end
 
 
 //sumG(sumg, sumgg, pixel_num, g) を計算
-void cu_calculateSumG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* sumG, int2* temp)
+void cu_calculateSumG(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* sumG, int2* temp)
 {
 	int blockSize = BLOCK_SIZE_1D;
-	int gridSizeY = ceil(sizeInfo.height / (float)blockSize);
-	int gridSizeX = ceil(sizeInfo.width / (float)blockSize);
+	int gridSizeY = ceil(sizeInfo.height_ / (float)blockSize);
+	int gridSizeX = ceil(sizeInfo.width_ / (float)blockSize);
 
 	cudaTextureObject_t texG;
 	cudaTextureFilterMode filterMode = cudaTextureFilterMode::cudaFilterModePoint;
 	//texGにGをバインド
-	UtilityForCUDA::setLinearArrayToTexture(G, texG, sizeInfo, filterMode);
+	Helper::UtilityForCUDA::setLinearArrayToTexture(G, texG, sizeInfo, filterMode);
 	//texGの内容からsumGなど計算しtempに格納
-	de_gsum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, temp, texG, sizeInfo.pitch<int2>());
+	de_gsum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, temp, texG, sizeInfo.pitch<int2>());
 	//tempをtexGにバインドし、縦方向のsumGなど計算しsumGに格納
-	UtilityForCUDA::setLinearArrayToTexture(temp, texG, sizeInfo, filterMode);
+	Helper::UtilityForCUDA::setLinearArrayToTexture(temp, texG, sizeInfo, filterMode);
 	//texGの内容からsumGなど計算しsumGに格納
-	de_gsum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, sumG, texG, sizeInfo.pitch<int2>());
+	de_gsum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, sumG, texG, sizeInfo.pitch<int2>());
 
 	cudaDestroyTextureObject(texG);
 }
 //g3
-void cu_calculateSumG3(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G3, int radius, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG)
+void cu_calculateSumG3(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* G3, int radius, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG)
 {
 	int blockSize = BLOCK_SIZE_1D;
-	int gridSizeY = ceil(sizeInfo.height / (float)blockSize);
-	int gridSizeX = ceil(sizeInfo.width / (float)blockSize);
+	int gridSizeY = ceil(sizeInfo.height_ / (float)blockSize);
+	int gridSizeX = ceil(sizeInfo.width_ / (float)blockSize);
 
 	cudaTextureFilterMode filterMode = cudaTextureFilterMode::cudaFilterModePoint;
-	TextureArray<int>* texG = new TextureArray<int>(G3, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texG = new Helper::TextureArray<int>(G3, filterMode, sizeInfo);
 	//texGの内容からgsumをtempGに、ggsumをtempGGに格納
-	de_g3sum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, tempG->device, tempGG->device, texG->device, sizeInfo.pitch<int>());
+	de_g3sum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, tempG->device, tempGG->device, texG->device, sizeInfo.pitch<int>());
 	//tempGをtexSumGに、tempGGをtexSumGGにバインド
-	TextureArray<int>* texSumG = new TextureArray<int>(tempG, filterMode, sizeInfo);
-	TextureArray<int>* texSumGG = new TextureArray<int>(tempGG, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texSumG = new Helper::TextureArray<int>(tempG, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texSumGG = new Helper::TextureArray<int>(tempGG, filterMode, sizeInfo);
 	//sumG、sumGG計算
-	de_g3sum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, sumG->device, sumGG->device, texSumG->device, texSumGG->device, sizeInfo.pitch<int>());
+	de_g3sum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, sumG->device, sumGG->device, texSumG->device, texSumGG->device, sizeInfo.pitch<int>());
 	
 	delete texG;
 	delete texSumG;
 	delete texSumGG;
 }
 //gX
-void cu_calculateSumGX(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* GX, int radius, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG, int n)
+void cu_calculateSumGX(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* GX, int radius, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG, int n)
 {
 	int blockSize = BLOCK_SIZE_1D;
-	int gridSizeY = ceil(sizeInfo.height / (float)blockSize);
-	int gridSizeX = ceil(sizeInfo.width / (float)blockSize);
+	int gridSizeY = ceil(sizeInfo.height_ / (float)blockSize);
+	int gridSizeX = ceil(sizeInfo.width_ / (float)blockSize);
 
 	cudaTextureFilterMode filterMode = cudaTextureFilterMode::cudaFilterModePoint;
-	TextureArray<int>* texG = new TextureArray<int>(GX, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texG = new Helper::TextureArray<int>(GX, filterMode, sizeInfo);
 	//texGの内容からgsumをtempGに、ggsumをtempGGに格納
-	de_gXsum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, tempG->device, tempGG->device, texG->device, sizeInfo.pitch<int>(), n);
+	de_gXsum_x << < gridSizeY, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, tempG->device, tempGG->device, texG->device, sizeInfo.pitch<int>(), n);
 	//tempGをtexSumGに、tempGGをtexSumGGにバインド
-	TextureArray<int>* texSumG = new TextureArray<int>(tempG, filterMode, sizeInfo);
-	TextureArray<int>* texSumGG = new TextureArray<int>(tempGG, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texSumG = new Helper::TextureArray<int>(tempG, filterMode, sizeInfo);
+	Helper::TextureArray<int>* texSumGG = new Helper::TextureArray<int>(tempGG, filterMode, sizeInfo);
 	//sumG、sumGG計算
-	de_gXsum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, radius, sumG->device, sumGG->device, texSumG->device, texSumGG->device, sizeInfo.pitch<int>(), n);
+	de_gXsum_y << < gridSizeX, blockSize, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, radius, sumG->device, sumGG->device, texSumG->device, texSumGG->device, sizeInfo.pitch<int>(), n);
 
 	delete texG;
 	delete texSumG;
@@ -715,45 +637,37 @@ void cu_calculateSumGX(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>
 
 
 
-//refactoring用　cx,dxをfloat2ではなくDeviceArray<float>* cxdxで定義
-void cu_calculateCxDxFromG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, DeviceArray<float>* cxdx, int2* sumG, int2* temp)
-{
-	cu_calculateSumG(sizeInfo, stream, G, radius, sumG, temp);
-	float pixel_sum_window_inv = 1.0f / pixelNumInWindow; ((radius * 2 + 1) * (radius * 2 + 1));
-	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, pixel_sum_window_inv, cxdx->device, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
-}
 
 
 
 //sumgも計算 2D用 cx,dxをfloat2で定義
-void cu_calculateCxDxFromG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, float2* cxdx, int2* sumG, int2* temp)
+void cu_calculateDC(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, float2* dxcx, int2* sumG, int2* temp)
 {
 	cu_calculateSumG(sizeInfo, stream, G, radius, sumG, temp);
 	float pixel_sum_window_inv = 1.0f / pixelNumInWindow; ((radius * 2 + 1) * (radius * 2 + 1));
 	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, pixel_sum_window_inv, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float2>());
+	de_calculateDC << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G, sumG, eps2, pixel_sum_window_inv, dxcx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float2>());
 }
 //g3
-void cu_calculateCx3DxFromG(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G3, int radius, int pixelNumInWindow, float eps2, float4* cxdx, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG)
+void cu_calculateDC3(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* G3, int radius, int pixelNumInWindow, float eps2, float4* dxcx, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG)
 {
 	cu_calculateSumG3(sizeInfo, stream, G3, radius, sumG, sumGG, tempG, tempGG);
 	float pixel_sum_window_inv = 1.0f / pixelNumInWindow;
 	//sumGの値からcx, dxを計算
-	de_calculateCx3Dx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G3->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float4>());
+	de_calculateCx3Dx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G3->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, dxcx, sizeInfo.pitch<int>(), sizeInfo.pitch<float4>());
 }
 
 //gX
-void cu_calculateCxXDxFromG(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* GX, int radius, int pixelNumInWindow, float eps2, DeviceArray<float>* cxdx, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG)
+void cu_calculateCxXDxFromG(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* GX, int radius, int pixelNumInWindow, float eps2, Helper::DeviceArray<float>* dxcx, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG)
 {
 	int n = GX->arrayLength;
 	cu_calculateSumGX(sizeInfo, stream, GX, radius, sumG, sumGG, tempG, tempGG, n);
 	float pixel_sum_window_inv = 1.0f / pixelNumInWindow;
 	//sumGの値からcx, dxを計算
 	//線型方程式を解いているこの部分がほとんどの時間を消費している
-	de_calculateCxXDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, GX->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, cxdx->device, sizeInfo.pitch<int>(), sizeInfo.pitch<float>(), n);
+	de_calculateCxXDx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, GX->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, dxcx->device, sizeInfo.pitch<int>(), sizeInfo.pitch<float>(), n);
 
-	//Utility::showDevice(cxdx->host[0], sizeInfo, "cxdx", true, 100000.0f);
+	//Utility::showDevice(dxcx->host[0], sizeInfo, "dxcx", true, 100000.0f);
 }
 
 //////////////////////////////////////////////////////////
@@ -876,86 +790,86 @@ de_remSumG3(int width, int height, int** remSumG, int** remSumGG, int** sumG, in
 }
 
 //update
-void cu_updateSumG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* addSumG, int2* remSumG, int2* sumG, int2* temp)
+void cu_updateSumG(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* addSumG, int2* remSumG, int2* sumG, int2* temp)
 {
 	cu_calculateSumG(sizeInfo, stream, G, radius, addSumG, temp);
-	de_updateSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG, remSumG, sumG, sizeInfo.pitch<int2>());
+	de_updateSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG, remSumG, sumG, sizeInfo.pitch<int2>());
 }
 //g3
-void cu_updateSumG3(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G, int radius, DeviceArray<int>* addSumG, DeviceArray<int>* addSumGG, DeviceArray<int>* remSumG, DeviceArray<int>* remSumGG, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG)
+void cu_updateSumG3(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* G, int radius, Helper::DeviceArray<int>* addSumG, Helper::DeviceArray<int>* addSumGG, Helper::DeviceArray<int>* remSumG, Helper::DeviceArray<int>* remSumGG, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG)
 {
 	cu_calculateSumG3(sizeInfo, stream, G, radius, addSumG, addSumGG, tempG, tempGG);
-	de_updateSumG3 << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG->device, addSumGG->device, remSumG->device, remSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
+	de_updateSumG3 << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG->device, addSumGG->device, remSumG->device, remSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
 }
 
 //add
-void cu_addSumG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* addSumG, int2* sumG, int2* temp)
+void cu_addSumG(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int2* addSumG, int2* sumG, int2* temp)
 {
 	cu_calculateSumG(sizeInfo, stream, G, radius, addSumG, temp);
-	de_addSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG, sumG, sizeInfo.pitch<int2>());
+	de_addSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG, sumG, sizeInfo.pitch<int2>());
 }
 //g3
-void cu_addSumG3(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G, int radius, DeviceArray<int>* addSumG, DeviceArray<int>* addSumGG, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG)
+void cu_addSumG3(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* G, int radius, Helper::DeviceArray<int>* addSumG, Helper::DeviceArray<int>* addSumGG, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG, Helper::DeviceArray<int>* tempG, Helper::DeviceArray<int>* tempGG)
 {
 	cu_calculateSumG3(sizeInfo, stream, G, radius, addSumG, addSumGG, tempG, tempGG);
-	de_addSumG3 << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG->device, addSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
+	de_addSumG3 << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG->device, addSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
 
 }
 
 //rem
-void cu_remSumG(SizeInfo& sizeInfo, cudaStream_t stream, int2* remSumG, int2* sumG)
+void cu_remSumG(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int2* remSumG, int2* sumG)
 {
-	de_remSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, remSumG, sumG, sizeInfo.pitch<int2>());
+	de_remSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, remSumG, sumG, sizeInfo.pitch<int2>());
 }
 //g3
-void cu_remSumG3(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* remSumG, DeviceArray<int>* remSumGG, DeviceArray<int>* sumG, DeviceArray<int>* sumGG)
+void cu_remSumG3(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* remSumG, Helper::DeviceArray<int>* remSumGG, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG)
 {
-	de_remSumG3 << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, remSumG->device, remSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
+	de_remSumG3 << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, remSumG->device, remSumGG->device, sumG->device, sumGG->device, sizeInfo.pitch<int>());
 }
 
-//cxdx
-void cu_calculateCxDx(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, float2* cxdx, int2* sumG)
+//dxcx
+void cu_calculateCxDx(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, float2* dxcx, int2* sumG)
 {
 	float pixel_sum_window_inv = 1.0f / pixelNumInWindow;
 	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, pixel_sum_window_inv, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float2>());
+	de_calculateDC << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G, sumG, eps2, pixel_sum_window_inv, dxcx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float2>());
 }
 //g3
-void cu_calculateCx3Dx(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G, int radius, int pixelNumInWindow, float eps2, float4* cxdx, DeviceArray<int>* sumG, DeviceArray<int>* sumGG)
+void cu_calculateCx3Dx(Helper::SizeInfo& sizeInfo, cudaStream_t stream, Helper::DeviceArray<int>* G, int radius, int pixelNumInWindow, float eps2, float4* dxcx, Helper::DeviceArray<int>* sumG, Helper::DeviceArray<int>* sumGG)
 {
 	float pixel_sum_window_inv = 1.0f / pixelNumInWindow;
 	//sumGの値からcx, dxを計算
-	de_calculateCx3Dx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, cxdx, sizeInfo.pitch<int>(), sizeInfo.pitch<float4>());
+	de_calculateCx3Dx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G->device, sumG->device, sumGG->device, eps2, pixel_sum_window_inv, dxcx, sizeInfo.pitch<int>(), sizeInfo.pitch<float4>());
 }
 
 
 
 /*
 //sumgも計算 3D用 追加と削除を行う版　addSumGに追加するsumgを計算し、今のsumGに加えるとともにremSumGを削除する addSumGは確保された空のものを渡し、remSumGは中身のある削除するやつを渡す
-void cu_updateCxDx(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* addSumG, int2* remSumG, int2* sumG, int2* temp)
+void cu_updateCxDx(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* addSumG, int2* remSumG, int2* sumG, int2* temp)
 {
 	cu_calculateSumG(sizeInfo, stream, G, radius, addSumG, temp);
 	//addSumGの追加とremSumGの削除
-	de_updateSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG, remSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
+	de_updateSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG, remSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
 	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
+	de_calculateCxDx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
 }
 //追加のみ
-void cu_updateCxDx_add(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* addSumG, int2* sumG, int2* temp)
+void cu_updateCxDx_add(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* addSumG, int2* sumG, int2* temp)
 {
 	cu_calculateSumG(sizeInfo, stream, G, radius, addSumG, temp);
 	//addSumGの追加
-	de_addSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, addSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
+	de_addSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, addSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
 	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
+	de_calculateCxDx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
 }
 //削除のみ
-void cu_updateCxDx_rem(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* remSumG, int2* sumG, int2* temp)
+void cu_updateCxDx_rem(Helper::SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, float eps2, float* cx, float* dx, int2* remSumG, int2* sumG, int2* temp)
 {
 	//remSumGの削除
-	de_remSumG << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, remSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
+	de_remSumG << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, remSumG, sumG, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>());
 	//sumGの値からcx, dxを計算
-	de_calculateCxDx << <sizeInfo.gridSize, sizeInfo.blockSize, 0, stream >> > (sizeInfo.width, sizeInfo.height, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
+	de_calculateCxDx << <sizeInfo.gridSize_, sizeInfo.blockSize_, 0, stream >> > (sizeInfo.width_, sizeInfo.height_, G, sumG, eps2, cx, dx, sizeInfo.pitch<int>(), sizeInfo.pitch<int2>(), sizeInfo.pitch<float>());
 }
 */
 
@@ -1070,7 +984,7 @@ de_gsum_y(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 
 
 __global__ void
-de_calculateDC(int width_, int height_, int* G, int4* sumG, float eps2, float2* cxdx, size_t pitchI1, size_t pitchI4, size_t pitchF2)
+de_calculateDC(int width_, int height_, int* G, int4* sumG, float eps2, float2* dxcx, size_t pitchI1, size_t pitchI4, size_t pitchF2)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -1085,8 +999,10 @@ de_calculateDC(int width_, int height_, int* G, int4* sumG, float eps2, float2* 
 	float vx = gg_ave - g_ave * g_ave + eps2;
 	float tmp2 = ((float)g) - g_ave;
 	float cx2 = tmp2 * pixel_sum_window_inv / vx;
-	*((float2*)((char*)cxdx + y * pitchF2) + x) = make_float2(cx2, pixel_sum_window_inv - g_ave * cx2);
+	*((float2*)((char*)dxcx + y * pitchF2) + x) = make_float2(cx2, pixel_sum_window_inv - g_ave * cx2);
 }
 
 
 #endif
+
+}

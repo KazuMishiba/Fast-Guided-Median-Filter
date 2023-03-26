@@ -38,6 +38,9 @@
 class Experimenter
 {
 public:
+	//リファクタリング用
+	void forRefactoring(std::string filePathSrc, std::string filePathGuide);
+
 	///////////////////////
 	//動作テスト
 	void test(std::string filePathSrc, std::string filePathGuide = "");

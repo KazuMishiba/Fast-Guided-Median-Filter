@@ -16,16 +16,16 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 	const float half = 0.5f;
 
 	//初期化
-	int width = I.cols;
-	int height = I.rows;
+	int width_ = I.cols;
+	int height_ = I.rows;
 
 	//結果保存
-	Mat med_idx = Mat(height, width, CV_32S);
+	Mat med_idx = Mat(height_, width_, CV_32S);
 
 
 	//各列用ヒストグラム格納変数
-	fg** histo_col = new fg *[width];
-	for (int i = 0; i < width; i++)
+	fg** histo_col = new fg *[width_];
+	for (int i = 0; i < width_; i++)
 	{
 		histo_col[i] = (fg*)_aligned_malloc(sizeof(fg) * Imax, 32);
 		memset(histo_col[i], 0, sizeof(fg) * Imax);
@@ -41,12 +41,12 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 		int under_i_g;
 
 	};
-	colDataStruct* colData = new colDataStruct[width];
-	memset(colData, 0, sizeof(colDataStruct) * width);
+	colDataStruct* colData = new colDataStruct[width_];
+	memset(colData, 0, sizeof(colDataStruct) * width_);
 
 	//under_i_indexで示される値以下 のときのindex
-	int* under_i_col_index = new int[width];
-	memset(under_i_col_index, 0, sizeof(int) * width);
+	int* under_i_col_index = new int[width_];
+	memset(under_i_col_index, 0, sizeof(int) * width_);
 
 	//Window内ヒストグラム
 	fg* histo_window = (fg*)_aligned_malloc(sizeof(fg) * Imax, 32);
@@ -58,7 +58,7 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 
 
 	//処理開始
-	for (int y = 0; y < height; y++)
+	for (int y = 0; y < height_; y++)
 	{
 		//cout << "y:" << y << endl;
 
@@ -66,7 +66,7 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 		y_rem++;
 
 		bool hasPreviousRow = y_rem >= 0;
-		bool hasNestRow = y_add < height;
+		bool hasNestRow = y_add < height_;
 
 		//初期化
 
@@ -88,8 +88,8 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 		int pixel_sum_col = 2 * r + 1;
 		if (y < r)
 			pixel_sum_col = y + r + 1;
-		else if ((y + r) >= height)
-			pixel_sum_col = height - y + r;
+		else if ((y + r) >= height_)
+			pixel_sum_col = height_ - y + r;
 
 
 		//処理中のindex y = 0なら入力で初期化、y > 0なら[y - 1, 0]の値で初期化
@@ -123,14 +123,14 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 		//ウィンドウ内画素数の逆数
 		float pixel_sum_window_inv = 0.0f;
 
-		for (int x = -r; x < width; x++)
+		for (int x = -r; x < width_; x++)
 		{
 			x_add++;
 			x_rem++;
 
 
 			//追加する次の列があるか
-			bool hasNextColumn = x_add < width;
+			bool hasNextColumn = x_add < width_;
 			//削除する前の列があるか
 			bool hasPreviousColumn = x_rem >= 0;
 
@@ -328,7 +328,7 @@ Mat FGMF::filter(Mat& I, Mat& G, int r, float eps2, int Imax)
 
 
 	//メモリ開放
-	for (int i = 0; i < width; i++)
+	for (int i = 0; i < width_; i++)
 	{
 		_aligned_free(histo_col[i]);
 	}
@@ -697,16 +697,16 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 	const float half = 0.5f;
 
 	//初期化
-	int width = I.cols;
-	int height = I.rows;
+	int width_ = I.cols;
+	int height_ = I.rows;
 
 	//結果保存
-	Mat med_idx = Mat(height, width, CV_32S);
+	Mat med_idx = Mat(height_, width_, CV_32S);
 
 
 	//各列用ヒストグラム格納変数
-	fg** histo_col = new fg *[width];
-	for (int i = 0; i < width; i++)
+	fg** histo_col = new fg *[width_];
+	for (int i = 0; i < width_; i++)
 	{
 		histo_col[i] = (fg*)_aligned_malloc(sizeof(fg) * Imax, 32);
 		memset(histo_col[i], 0, sizeof(fg) * Imax);
@@ -722,12 +722,12 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 		int under_i_g;
 
 	};
-	colDataStruct* colData = new colDataStruct[width];
-	memset(colData, 0, sizeof(colDataStruct) * width);
+	colDataStruct* colData = new colDataStruct[width_];
+	memset(colData, 0, sizeof(colDataStruct) * width_);
 
 	//under_i_indexで示される値以下 のときのindex
-	int* under_i_col_index = new int[width];
-	memset(under_i_col_index, 0, sizeof(int) * width);
+	int* under_i_col_index = new int[width_];
+	memset(under_i_col_index, 0, sizeof(int) * width_);
 
 	//Window内ヒストグラム
 	fg* histo_window = (fg*)_aligned_malloc(sizeof(fg) * Imax, 32);
@@ -739,7 +739,7 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 
 
 	//処理開始
-	for (int y = 0; y < height; y++)
+	for (int y = 0; y < height_; y++)
 	{
 		//cout << "y:" << y << endl;
 
@@ -747,7 +747,7 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 		y_rem++;
 
 		bool hasPreviousRow = y_rem >= 0;
-		bool hasNestRow = y_add < height;
+		bool hasNestRow = y_add < height_;
 
 		//初期化
 
@@ -769,8 +769,8 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 		int pixel_sum_col = 2 * r + 1;
 		if (y < r)
 			pixel_sum_col = y + r + 1;
-		else if ((y + r) >= height)
-			pixel_sum_col = height - y + r;
+		else if ((y + r) >= height_)
+			pixel_sum_col = height_ - y + r;
 
 
 		//処理中のindex y = 0なら入力で初期化、y > 0なら[y - 1, 0]の値で初期化
@@ -804,14 +804,14 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 		//ウィンドウ内画素数の逆数
 		float pixel_sum_window_inv = 0.0f;
 
-		for (int x = -r; x < width; x++)
+		for (int x = -r; x < width_; x++)
 		{
 			x_add++;
 			x_rem++;
 
 
 			//追加する次の列があるか
-			bool hasNextColumn = x_add < width;
+			bool hasNextColumn = x_add < width_;
 			//削除する前の列があるか
 			bool hasPreviousColumn = x_rem >= 0;
 
@@ -1008,7 +1008,7 @@ Mat FGMF::filterOld(Mat& I, Mat& G, int r, float eps2, int Imax)
 
 
 	//メモリ開放
-	for (int i = 0; i < width; i++)
+	for (int i = 0; i < width_; i++)
 	{
 		_aligned_free(histo_col[i]);
 	}

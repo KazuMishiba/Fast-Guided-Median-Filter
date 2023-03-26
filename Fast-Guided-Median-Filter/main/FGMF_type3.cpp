@@ -149,7 +149,7 @@ cv::Mat FGMF3::filter2DGPU_shared1(cv::Mat& I, cv::Mat& G, int radius, float eps
 	Utility::allocateDeviceMemory(temp_device, sizeInfo);
 	//cudaStreamSynchronize(stream2);
 	//cx, dxåvéZ
-	cu_calculateCxDxFromG(sizeInfo, NULL, G_device, radius, eps2, cxdx_device, sumG_device, temp_device);
+	cu_calculateDC(sizeInfo, NULL, G_device, radius, eps2, cxdx_device, sumG_device, temp_device);
 
 	//åãâ äiî[óp
 	int* result_device;
@@ -159,10 +159,10 @@ cv::Mat FGMF3::filter2DGPU_shared1(cv::Mat& I, cv::Mat& G, int radius, float eps
 	//medianåvéZ
 	cu_filter2D_shared1(sizeInfo, NULL, radius, Imax, result_device, F_device, G_device, cxdx_device);
 
-	cv::Mat result(sizeInfo.height, sizeInfo.width, CV_32SC1);
+	cv::Mat result(sizeInfo.height_, sizeInfo.width_, CV_32SC1);
 	//cudaHostRegister(result.data, I.total() * I.elemSize(), cudaHostRegisterDefault);
 	//result = Utility::downloadLinearArrayAsMat(result_device, sizeInfo);
-	cudaMemcpy2D(result.data, result.step, result_device, sizeInfo.pitch<int>(), sizeInfo.width * sizeof(int), sizeInfo.height, cudaMemcpyDefault);
+	cudaMemcpy2D(result.data, result.step, result_device, sizeInfo.pitch<int>(), sizeInfo.width_ * sizeof(int), sizeInfo.height_, cudaMemcpyDefault);
 
 	//ÉÅÉÇÉääJï˙
 	cudaFree(result_device);
@@ -203,7 +203,7 @@ cv::Mat FGMF3::filter2DGPU_shared2(int* I, int* G, int radius, float eps2, int I
 	Utility::allocateDeviceMemory(temp_device, sizeInfo);
 	cudaStreamSynchronize(stream2);
 	//cx, dxåvéZ
-	cu_calculateCxDxFromG(sizeInfo, NULL, G_device, radius, eps2, cxdx_device, sumG_device, temp_device);
+	cu_calculateDC(sizeInfo, NULL, G_device, radius, eps2, cxdx_device, sumG_device, temp_device);
 
 	//åãâ äiî[óp
 	int* result_device;
@@ -237,7 +237,7 @@ void FGMF3::filter2DGPU_selfGuide(int*& I, int*& result, int radius, float eps2,
 	Utility::allocateDeviceMemory(sumG, sizeInfo);
 	Utility::allocateDeviceMemory(temp, sizeInfo);
 	//cx, dxåvéZ
-	cu_calculateCxDxFromG(sizeInfo, NULL, I, radius, eps2, cxdx, sumG, temp);
+	cu_calculateDC(sizeInfo, NULL, I, radius, eps2, cxdx, sumG, temp);
 	//medianåvéZ
 	cu_filter2D_selfGuide(sizeInfo, NULL, radius, Imax, result, I, cxdx);
 

@@ -1,4 +1,7 @@
-#include "CxDxPrecalculation.cuh"
+#include "CalculateC_D_ver0.cuh"
+
+namespace FGMF_GPU_Or_ver0
+{
 
 //‹«ŠEŠg’£”Å
 __global__ void
@@ -963,10 +966,10 @@ void cu_updateCxDx_rem(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radi
 //‹«ŠEŠg’£‚µ‚È‚¢”Å
 //‹«ŠEŠg’£‚µ‚È‚¢”Å
 __global__ void
-de_gsum_x(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t texG, size_t pitchI4)
+de_gsum_x(int width, int height, int radius, int4* sumG, cudaTextureObject_t texG, size_t pitchI4)
 {
 	int y = blockIdx.x * blockDim.x + threadIdx.x;
-	if (y >= height_)
+	if (y >= height)
 		return;
 
 
@@ -997,7 +1000,7 @@ de_gsum_x(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 	}
 	//x+radius‚ªwidth-1‚É‚È‚é‚Ü‚Å‰ÁŒ¸ŽZ‚·‚é
 	//x = width - 1 - radius
-	int bound = width_ - 1 - radius;
+	int bound = width - 1 - radius;
 	for (; x <= bound; x++)
 	{
 		g = tex2D<int>(texG, float(x + radius) + 0.5f, float(y) + 0.5f);
@@ -1007,7 +1010,7 @@ de_gsum_x(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 		*((int4*)((char*)sumG + y * pitchI4) + x) = make_int4(sumg, sumgg, pixNum, g);
 	}
 	//x= ~width-1
-	for (; x < width_; x++)
+	for (; x < width; x++)
 	{
 		_g = tex2D<int>(texG, float(x - radius - 1) + 0.5f, float(y) + 0.5f);
 		sumg -= _g;
@@ -1018,10 +1021,10 @@ de_gsum_x(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 }
 
 __global__ void
-de_gsum_y(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t texSumG, size_t pitchI4)
+de_gsum_y(int width, int height, int radius, int4* sumG, cudaTextureObject_t texSumG, size_t pitchI4)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	if (x >= width_)
+	if (x >= width)
 		return;
 
 	int4 tmp, _tmp;
@@ -1049,7 +1052,7 @@ de_gsum_y(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 		pixNum += tmp.z;
 		*((int4*)((char*)sumG + y * pitchI4) + x) = make_int4(sumg, sumgg, pixNum, sumg / pixNum);
 	}
-	int bound = height_ - 1 - radius;
+	int bound = height - 1 - radius;
 	for (; y < bound; y++)
 	{
 		tmp = tex2D<int4>(texSumG, float(x) + 0.5f, float(y + radius) + 0.5f);
@@ -1058,7 +1061,7 @@ de_gsum_y(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 		sumgg += tmp.y - _tmp.y;
 		*((int4*)((char*)sumG + y * pitchI4) + x) = make_int4(sumg, sumgg, pixNum, sumg / pixNum);
 	}
-	for (; y < height_; y++)
+	for (; y < height; y++)
 	{
 		_tmp = tex2D<int4>(texSumG, float(x) + 0.5f, float(y - radius - 1) + 0.5f);
 		sumg -= _tmp.x;
@@ -1070,11 +1073,11 @@ de_gsum_y(int width_, int height_, int radius, int4* sumG, cudaTextureObject_t t
 
 
 __global__ void
-de_calculateDC(int width_, int height_, int* G, int4* sumG, float eps2, float2* cxdx, size_t pitchI1, size_t pitchI4, size_t pitchF2)
+de_calculateCxDx(int width, int height, int* G, int4* sumG, float eps2, float2* cxdx, size_t pitchI1, size_t pitchI4, size_t pitchF2)
 {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	if (x < 0 || x >= width_ || y < 0 || y >= height_)
+	if (x < 0 || x >= width || y < 0 || y >= height)
 		return;
 
 	int4 tmp = *((int4*)((char*)sumG + y * pitchI4) + x);
@@ -1090,3 +1093,5 @@ de_calculateDC(int width_, int height_, int* G, int4* sumG, float eps2, float2* 
 
 
 #endif
+
+}

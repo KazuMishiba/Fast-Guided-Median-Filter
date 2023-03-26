@@ -2,16 +2,16 @@
 
 namespace FGMF_CPU_O1
 {
-	cv::Mat filter_2d(cv::Mat& f_img, cv::Mat& g_img, int radius, float eps2, int fRange, int threadNum)
+	cv::Mat filter_2d(cv::Mat& f_img, cv::Mat& g_img, int threadNum, int radius, float eps2, int Imax)
 	{
-		WMF wmf = WMF(f_img, g_img, radius, eps2, fRange, threadNum);
+		WMF wmf = WMF(f_img, g_img, threadNum, radius, eps2, Imax);
 		return wmf.apply_2d_filter();
 
 	}
 
 	cv::Mat WMF::apply_2d_filter()
 	{
-		//FとGのタイプで分岐
+		//IとGのタイプで分岐
 		if (channelNum_f_ == 1 && channelNum_g_ == 1) {
 			cv::Mat result(M_, N_, CV_32SC1);
 			filtering<Window_calc_cd<int>, int, float>(f_img_, g_img_, result);
@@ -65,17 +65,17 @@ namespace FGMF_CPU_O1
 	}
 
 	template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-	inline void WMF::filtering(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result)
+	inline void WMF::filtering(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result)
 	{
 #if 0
 		// 各分割結果の開始の数字を格納するvectorを用意する
 		std::vector<int> starts;
 		std::vector<int> ends;
 		// 均等に分割するための幅を計算する
-		int width_ = M_ / threadNum_;
+		int width = M_ / threadNum_;
 		// 各分割結果の開始の数字を計算してvectorに格納する
 		for (int i = 0; i < threadNum_; i++)
-			starts.push_back(i * width_);
+			starts.push_back(i * width);
 		for (int i = 0; i < threadNum_ - 1; i++)
 			ends.push_back(starts[i + 1] - 1);
 		ends.push_back(M_ - 1);
@@ -126,33 +126,33 @@ end for
 */
 
 	template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-	inline void WMF::filteringBlock(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result, int sStart_target, int sEnd_target)
+	inline void WMF::filteringBlock(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result, const int sStart_target, const int sEnd_target)
 	{
 		// 使用画素範囲開始列、終了列(+1)
-		int sStart_enable = std::max(sStart_target - radius_, 0);
-		int sEnd_enable = std::min(sEnd_target + radius_, N_ - 1);
+		const int sStart_enable = std::max(sStart_target - radius_, 0);
+		const int sEnd_enable = std::min(sEnd_target + radius_, N_ - 1);
 
 		// W1ウィンドウ必要幅数
-		int w1Width = sEnd_enable - sStart_enable + 1;
+		const int w1Width = sEnd_enable - sStart_enable + 1;
 
 		// Initialize array of W(1) = {F(1),G(1), f(1)↓, g(1)↓, k(1)}
 		std::vector<std::unique_ptr<WINDOW>> pW1(w1Width);
 		for (int i = 0; i < w1Width; ++i)
-			pW1[i] = std::make_unique<WINDOW>(fRange_);
+			pW1[i] = std::make_unique<WINDOW>(Imax_);
 
 
 		for (int t = -radius_; t < M_; t++)
 		{
-			int tp = t + p_;
-			int tm = t - m_;
+			const int tp = t + p_;
+			const int tm = t - m_;
 			// Initialize W(2) = {F(2),G(2), f(2)↓, g(2)↓, k(2)}
-			WINDOW W2(fRange_);//毎回宣言は無駄なのでいずれループ外に出す
+			WINDOW W2(Imax_);//毎回宣言は無駄なのでいずれループ外に出す
 			//画素ポインタ初期化
-			int* f_sp_tp = f_single.ptr<int>(std::min(tp, M_ - 1)) + sStart_enable;
-			int* f_sp_tm = f_single.ptr<int>(std::max(tm, 0)) + sStart_enable;
-			G_TYPE* g_x = g_multi.ptr<G_TYPE>(std::max(t, 0)) + sStart_target;
-			G_TYPE* g_sp_tp = g_multi.ptr<G_TYPE>(std::min(tp, M_ - 1)) + sStart_enable;
-			G_TYPE* g_sp_tm = g_multi.ptr<G_TYPE>(std::max(tm, 0)) + sStart_enable;
+			const int* f_sp_tp = f_single.ptr<int>(std::min(tp, M_ - 1)) + sStart_enable;
+			const int* f_sp_tm = f_single.ptr<int>(std::max(tm, 0)) + sStart_enable;
+			const G_TYPE* g_x = g_multi.ptr<G_TYPE>(std::max(t, 0)) + sStart_target;
+			const G_TYPE* g_sp_tp = g_multi.ptr<G_TYPE>(std::min(tp, M_ - 1)) + sStart_enable;
+			const G_TYPE* g_sp_tm = g_multi.ptr<G_TYPE>(std::max(tm, 0)) + sStart_enable;
 			int* f_star = result.ptr<int>(std::max(t, 0)) + sStart_target;
 
 			C_TYPE* c_x = c_.ptr<C_TYPE>(std::max(t, 0)) + sStart_target;
@@ -160,8 +160,8 @@ end for
 
 			for (int s = sStart_enable - radius_; s <= sEnd_target; s++)
 			{
-				int sp = s + p_;
-				int sm = s - m_;
+				const int sp = s + p_;
+				const int sm = s - m_;
 				//Add pixel at(s+, t+) to W(1)[s+]
 				if (sp < N_ && tp < M_) {
 					addPixelToWindow<WINDOW, G_TYPE>(f_sp_tp, g_sp_tp, *pW1[sp - sStart_enable]);
@@ -188,7 +188,7 @@ end for
 
 				//f*_{s,t} = Search weighted median(W(2), c_{s,t}, d_{s,t})
 				if (s >= sStart_target && t >= 0) {
-					*f_star = searchWeightedMedian<WINDOW, G_TYPE, C_TYPE>(*g_x, W2, *c_x, *d_x);
+					*f_star = searchWeightedMedian<WINDOW, G_TYPE, C_TYPE>(g_x, W2, c_x, d_x);
 
 					/*
 					if (t==0)
@@ -205,12 +205,12 @@ end for
 	}
 
 	template<typename WINDOW, typename C_TYPE, typename G_TYPE>
-	void WMF::debugging(int s, int t, WINDOW& W, C_TYPE* c, float* d, cv::Mat& f, cv::Mat& g)
+	void WMF::debugging(int s, int t, WINDOW& W, C_TYPE* c, float* d, const cv::Mat& f, const cv::Mat& g)
 	{
 	}
 
 	template<>
-	void WMF::debugging<Window_calc_cd<cv::Vec3i>, cv::Vec3f, cv::Vec3i>(int s, int t, Window_calc_cd<cv::Vec3i>& W, cv::Vec3f* c, float* d, cv::Mat& f, cv::Mat& g)
+	void WMF::debugging<Window_calc_cd<cv::Vec3i>, cv::Vec3f, cv::Vec3i>(int s, int t, Window_calc_cd<cv::Vec3i>& W, cv::Vec3f* c, float* d, const cv::Mat& f, const cv::Mat& g)
 	{
 		std::ofstream file("refactoring.txt", std::ios::app);
 
@@ -262,16 +262,16 @@ end for
 
 	//水平に切ってしまったがそういえば垂直切りが適切だった
 	template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-	inline void WMF::filteringBlockHorizontal(cv::Mat& f_single, cv::Mat& g_multi, cv::Mat& result, int tStart_target, int tEnd_target)
+	inline void WMF::filteringBlockHorizontal(const cv::Mat& f_single, const cv::Mat& g_multi, cv::Mat& result, const int tStart_target, const int tEnd_target)
 	{
 		// 使用画素範囲開始行、終了行(+1)
-		int tStart_enable = std::max(tStart_target - radius_, 0);
-		int tEnd_enable = std::min(tEnd_target + radius_, M_ - 1);
+		const int tStart_enable = std::max(tStart_target - radius_, 0);
+		const int tEnd_enable = std::min(tEnd_target + radius_, M_ - 1);
 
 		// Initialize array of W(1) = {F(1),G(1), f(1)↓, g(1)↓, k(1)}
 		std::vector<std::unique_ptr<WINDOW>> pW1(N_);
 		for (int i = 0; i < N_; ++i)
-			pW1[i] = std::make_unique<WINDOW>(fRange_);
+			pW1[i] = std::make_unique<WINDOW>(Imax_);
 
 
 		for (int t = tStart_enable - radius_; t <= tEnd_target; t++)
@@ -279,20 +279,20 @@ end for
 			int tp = t + p_;
 			int tm = t - m_;
 			// Initialize W(2) = {F(2),G(2), f(2)↓, g(2)↓, k(2)}
-			WINDOW W2(fRange_);//毎回宣言は無駄なのでいずれループ外に出す
+			WINDOW W2(Imax_);//毎回宣言は無駄なのでいずれループ外に出す
 			//画素ポインタ初期化
-			int* f_sp_tp = f_single.ptr<int>(std::min(tp, M_ - 1));
-			int* f_sp_tm = f_single.ptr<int>(std::max(tm, 0));
-			G_TYPE* g = g_multi.ptr<G_TYPE>(std::max(t, 0));
-			G_TYPE* g_sp_tp = g_multi.ptr<G_TYPE>(std::min(tp, M_ - 1));
-			G_TYPE* g_sp_tm = g_multi.ptr<G_TYPE>(std::max(tm, 0));
+			const int* f_sp_tp = f_single.ptr<int>(std::min(tp, M_ - 1));
+			const int* f_sp_tm = f_single.ptr<int>(std::max(tm, 0));
+			const G_TYPE* g = g_multi.ptr<G_TYPE>(std::max(t, 0));
+			const G_TYPE* g_sp_tp = g_multi.ptr<G_TYPE>(std::min(tp, M_ - 1));
+			const G_TYPE* g_sp_tm = g_multi.ptr<G_TYPE>(std::max(tm, 0));
 			int* f_star = result.ptr<int>(std::max(t, 0));
 
 			C_TYPE* cx = c_.ptr<C_TYPE>(std::max(t, 0));
 			float* dx = d_.ptr<float>(std::max(t, 0));
 
 			for (int s = -radius_; s < N_; s++)
-			{	
+			{
 				int sp = s + p_;
 				int sm = s - m_;
 				//Add pixel at(s+, t+) to W(1)[s+]
@@ -334,7 +334,7 @@ end for
 
 
 	template<typename WINDOW, typename G_TYPE>
-	void WMF::addPixelToWindow(int* f_x, G_TYPE* g_x, WINDOW& W)
+	void WMF::addPixelToWindow(const int* f_x, const G_TYPE* g_x, WINDOW& W)
 	{
 		W.F_[*f_x] += 1;
 		W.G_[*f_x] += *g_x;
@@ -346,7 +346,7 @@ end for
 		W.addG(g_x);
 	}
 	template<typename WINDOW, typename G_TYPE>
-	void WMF::removePixelFromWindow(int* f_x, G_TYPE* g_x, WINDOW& W)
+	void WMF::removePixelFromWindow(const int* f_x, const G_TYPE* g_x, WINDOW& W)
 	{
 		W.F_[*f_x] -= 1;
 		W.G_[*f_x] -= *g_x;
@@ -383,7 +383,7 @@ end for
 		W2.g_cum_ += W1.g_cum_;
 
 #if defined(USE_AVX2)
-		for (int i = 0; i < fRange_ * (1 + sizeof(G_TYPE) / sizeof(int)); i += 8)
+		for (int i = 0; i < Imax_ * (1 + sizeof(G_TYPE) / sizeof(int)); i += 8)
 		{
 			__m256i w1_fg = _mm256_load_si256((__m256i*) & W1.storeFG_[i]);
 			__m256i w2_fg = _mm256_load_si256((__m256i*) & W2.storeFG_[i]);
@@ -391,7 +391,7 @@ end for
 			_mm256_store_si256((__m256i*) & W2.storeFG_[i], w2_fg);
 		}
 #else
-		for (int i = 0; i < fRange_; i++)
+		for (int i = 0; i < Imax_; i++)
 		{
 			W2.F_[i] += W1.F_[i];
 			W2.G_[i] += W1.G_[i];
@@ -428,7 +428,7 @@ end for
 
 	//
 #if defined(USE_AVX2)
-		for (int i = 0; i < fRange_ * (1 + sizeof(G_TYPE) / sizeof(int)); i += 8)
+		for (int i = 0; i < Imax_ * (1 + sizeof(G_TYPE) / sizeof(int)); i += 8)
 		{
 			__m256i w1_fg = _mm256_load_si256((__m256i*) & W1.storeFG_[i]);
 			__m256i w2_fg = _mm256_load_si256((__m256i*) & W2.storeFG_[i]);
@@ -436,7 +436,7 @@ end for
 			_mm256_store_si256((__m256i*) & W2.storeFG_[i], w2_fg);
 		}
 #else
-		for (int i = 0; i < fRange_; i++)
+		for (int i = 0; i < Imax_; i++)
 		{
 			W2.F_[i] -= W1.F_[i];
 			W2.G_[i] -= W1.G_[i];
@@ -448,7 +448,7 @@ end for
 
 
 	template<typename WINDOW, typename G_TYPE, typename C_TYPE>
-	int WMF::searchWeightedMedian(G_TYPE& g, WINDOW& W, C_TYPE& c_x, float& d_x)
+	int WMF::searchWeightedMedian(const G_TYPE* g, WINDOW& W, C_TYPE* c_x, float* d_x)
 	{
 		//MODE_CDによっては、ここでc,dを計算する、また保存する
 		calculateCandD(g, W, c_x, d_x);
@@ -486,28 +486,28 @@ end for
 	}
 	
 	template<typename WINDOW, typename C_TYPE, typename G_TYPE>
-	void WMF::calculateCandD(G_TYPE& g, WINDOW& W, C_TYPE& c_x, float& d_x)
+	void WMF::calculateCandD(const G_TYPE* g, WINDOW& W, C_TYPE* c_x, float* d_x)
 	{
 		// Noting to do.
 	}
 	
 	template<>
-	void WMF::calculateCandD<Window_calc_cd<int>, float, int>(int& g_x, Window_calc_cd<int>& W, float& c_x, float& d_x)
+	void WMF::calculateCandD<Window_calc_cd<int>, float, int>(const int* g_x, Window_calc_cd<int>& W, float* c_x, float* d_x)
 	{
-		float invNumPixels = 1. / W.dataForC_D_.numPixels_;
-		float g_ave = W.dataForC_D_.g_sum_ * invNumPixels;
-		float gg_ave = W.dataForC_D_.gg_sum_ * invNumPixels;
-		float vx = gg_ave - g_ave * g_ave + eps2_;
-		float centered = g_x - g_ave;
-		c_x = centered * invNumPixels / vx;
-		d_x = invNumPixels - g_ave * c_x;
+		const float invNumPixels = 1. / W.dataForC_D_.numPixels_;
+		const float g_ave = W.dataForC_D_.g_sum_ * invNumPixels;
+		const float gg_ave = W.dataForC_D_.gg_sum_ * invNumPixels;
+		const float vx = gg_ave - g_ave * g_ave + eps2_;
+		const float centered = *g_x - g_ave;
+		*c_x = centered * invNumPixels / vx;
+		*d_x = invNumPixels - g_ave * (*c_x);
 	}
 	template<>
-	void WMF::calculateCandD<Window_calc_cd<cv::Vec3i>, cv::Vec3f, cv::Vec3i>(cv::Vec3i& g_x, Window_calc_cd<cv::Vec3i>& W, cv::Vec3f& c_x, float& d_x)
+	void WMF::calculateCandD<Window_calc_cd<cv::Vec3i>, cv::Vec3f, cv::Vec3i>(const cv::Vec3i* g_x, Window_calc_cd<cv::Vec3i>& W, cv::Vec3f* c_x, float* d_x)
 	{
-		float invNumPixels = 1. / W.dataForC_D_.numPixels_;
-		cv::Vec3f g_ave = { W.dataForC_D_.g_sum_[0] * invNumPixels, W.dataForC_D_.g_sum_[1] * invNumPixels, W.dataForC_D_.g_sum_[2] * invNumPixels };
-		std::array<float, 6> gg_ave = {
+		const float invNumPixels = 1. / W.dataForC_D_.numPixels_;
+		const cv::Vec3f g_ave = { W.dataForC_D_.g_sum_[0] * invNumPixels, W.dataForC_D_.g_sum_[1] * invNumPixels, W.dataForC_D_.g_sum_[2] * invNumPixels };
+		const std::array<float, 6> gg_ave = {
 			W.dataForC_D_.gg_sum_[0] * invNumPixels,
 			W.dataForC_D_.gg_sum_[1] * invNumPixels,
 			W.dataForC_D_.gg_sum_[2] * invNumPixels,
@@ -515,15 +515,15 @@ end for
 			W.dataForC_D_.gg_sum_[4] * invNumPixels,
 			W.dataForC_D_.gg_sum_[5] * invNumPixels,
 		};
-		float v11 = gg_ave[0] - g_ave[0] * g_ave[0] + eps2_;
-		float v12 = gg_ave[1] - g_ave[0] * g_ave[1];
-		float v13 = gg_ave[2] - g_ave[0] * g_ave[2];
-		float v22 = gg_ave[3] - g_ave[1] * g_ave[1] + eps2_;
-		float v23 = gg_ave[4] - g_ave[1] * g_ave[2];
-		float v33 = gg_ave[5] - g_ave[2] * g_ave[2] + eps2_;
+		const float v11 = gg_ave[0] - g_ave[0] * g_ave[0] + eps2_;
+		const float v12 = gg_ave[1] - g_ave[0] * g_ave[1];
+		const float v13 = gg_ave[2] - g_ave[0] * g_ave[2];
+		const float v22 = gg_ave[3] - g_ave[1] * g_ave[1] + eps2_;
+		const float v23 = gg_ave[4] - g_ave[1] * g_ave[2];
+		const float v33 = gg_ave[5] - g_ave[2] * g_ave[2] + eps2_;
 
 
-		float det =
+		const float det =
 			  v11 * (v22 * v33 - v23 * v23)
 			- v12 * (v12 * v33 - v13 * v23)
 			+ v13 * (v12 * v23 - v13 * v22);
@@ -533,22 +533,22 @@ end for
 		else
 			invDet = 1. / det;
 		// 逆行列を計算
-		float b11 = (v22 * v33 - v23 * v23)* invDet;
-		float b12 = (v13 * v23 - v12 * v33)* invDet;
-		float b13 = (v12 * v23 - v13 * v22)* invDet;
-		float b22 = (v11 * v33 - v13 * v13)* invDet;
-		float b23 = (v12 * v13 - v11 * v23)* invDet;
-		float b33 = (v11 * v22 - v12 * v12)* invDet;
+		const float b11 = (v22 * v33 - v23 * v23)* invDet;
+		const float b12 = (v13 * v23 - v12 * v33)* invDet;
+		const float b13 = (v12 * v23 - v13 * v22)* invDet;
+		const float b22 = (v11 * v33 - v13 * v13)* invDet;
+		const float b23 = (v12 * v13 - v11 * v23)* invDet;
+		const float b33 = (v11 * v22 - v12 * v12)* invDet;
 
-		float centered1 = (g_x[0] - g_ave[0]) * invNumPixels;
-		float centered2 = (g_x[1] - g_ave[1]) * invNumPixels;
-		float centered3 = (g_x[2] - g_ave[2]) * invNumPixels;
+		const float centered1 = ((*g_x)[0] - g_ave[0]) * invNumPixels;
+		const float centered2 = ((*g_x)[1] - g_ave[1]) * invNumPixels;
+		const float centered3 = ((*g_x)[2] - g_ave[2]) * invNumPixels;
 
-		c_x[0] = b11 * centered1 + b12 * centered2 + b13 * centered3;
-		c_x[1] = b12 * centered1 + b22 * centered2 + b23 * centered3;
-		c_x[2] = b13 * centered1 + b23 * centered2 + b33 * centered3;
+		(*c_x)[0] = b11 * centered1 + b12 * centered2 + b13 * centered3;
+		(*c_x)[1] = b12 * centered1 + b22 * centered2 + b23 * centered3;
+		(*c_x)[2] = b13 * centered1 + b23 * centered2 + b33 * centered3;
 
-		d_x = invNumPixels - (c_x[0] * g_ave[0] + c_x[1] * g_ave[1] + c_x[2] * g_ave[2]);
+		*d_x = invNumPixels - ((*c_x)[0] * g_ave[0] + (*c_x)[1] * g_ave[1] + (*c_x)[2] * g_ave[2]);
 	}
 
 
@@ -560,24 +560,24 @@ end for
 	}
 	*/
 	template<>
-	float WMF::calculateHcum<int, float>(int& f_cum, int& g_cum, float& c_x, float &d_x)
+	float WMF::calculateHcum<int, float>(int& f_cum, int& g_cum, float* c, float *d)
 	{
-		return c_x * g_cum + d_x * f_cum;
+		return *c * g_cum + *d * f_cum;
 	}
 	template<>
-	float WMF::calculateHcum<cv::Vec3i, cv::Vec3f>(int& f_cum, cv::Vec3i& g_cum, cv::Vec3f& c_x, float& d_x)
+	float WMF::calculateHcum<cv::Vec3i, cv::Vec3f>(int& f_cum, cv::Vec3i& g_cum, cv::Vec3f* c, float* d)
 	{
-		return c_x[0] * g_cum[0] + c_x[1] * g_cum[1] + c_x[2] * g_cum[2]+ d_x * f_cum;
+		return (*c)[0] * g_cum[0] + (*c)[1] * g_cum[1] + (*c)[2] * g_cum[2]+ *d * f_cum;
 	}
 
 
 	template <typename G_TYPE>
-	void Window_calc_cd<G_TYPE>::addG(G_TYPE* g_x)
+	void Window_calc_cd<G_TYPE>::addG(const G_TYPE* g_x)
 	{
 		dataForC_D_.addG(g_x);
 	}
 	template <typename G_TYPE>
-	void Window_calc_cd<G_TYPE>::removeG(G_TYPE* g_x)
+	void Window_calc_cd<G_TYPE>::removeG(const G_TYPE* g_x)
 	{
 		dataForC_D_.removeG(g_x);
 	}

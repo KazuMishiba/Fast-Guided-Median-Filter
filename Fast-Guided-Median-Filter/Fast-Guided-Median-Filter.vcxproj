@@ -17,8 +17,14 @@
     <CudaCompile Include="main\CxDxPrecalculation.cu" />
     <CudaCompile Include="main\FGMF_type3.cu" />
     <CudaCompile Include="conv\GuidedFilter.cu" />
+    <CudaCompile Include="refactoring\CalculateC_D_ver0.cu" />
+    <CudaCompile Include="refactoring\CalculateC_D_ver2.cu" />
+    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver0.cu" />
+    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver2.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="refactoring\CalculateC_D_ver0.cuh" />
+    <ClInclude Include="refactoring\CalculateC_D_ver2.cuh" />
     <ClInclude Include="refactoring\FGMF_CPU_O1.h" />
     <ClInclude Include="main\boxFilter.cuh" />
     <ClInclude Include="main\common.h" />
@@ -26,6 +32,11 @@
     <ClInclude Include="conv\ConstantTimeWMF.h" />
     <ClInclude Include="main\CxDxPrecalculation.cuh" />
     <ClInclude Include="main\DataContainer.h" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.cuh" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.h" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.cuh" />
+    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.h" />
+    <ClInclude Include="refactoring\Helper.h" />
     <ClInclude Include="test\Experimenter.h" />
     <ClInclude Include="test\ExperimentManager.h" />
     <ClInclude Include="main\FGMF.h" />
@@ -47,6 +58,8 @@
     <ClCompile Include="conv\ConstantTimeWMF.cpp" />
     <ClCompile Include="refactoring\FGMF_CPU_O1.cpp" />
     <ClCompile Include="main\DataContainer.cpp" />
+    <ClCompile Include="refactoring\FGMF_GPU_Or_ver0.cpp" />
+    <ClCompile Include="refactoring\FGMF_GPU_Or_ver2.cpp" />
     <ClCompile Include="test\Experimenter.cpp" />
     <ClCompile Include="main\FGMF.cpp" />
     <ClCompile Include="main\FGMF_type1.cpp" />
@@ -80,7 +93,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(ProgramFiles) (x86)\MSBuild\Microsoft.Cpp\v4.0\BuildCustomizations\CUDA 11.7.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.7.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -91,6 +104,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(ProjectDir)\main;$(ProjectDir)\conv;$(ProjectDir)\test;$(ProjectDir)\refactoring;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(ProjectDir)\main;$(ProjectDir)\conv;$(ProjectDir)\test;$(ProjectDir)\refactoring;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -134,6 +151,6 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(ProgramFiles) (x86)\MSBuild\Microsoft.Cpp\v4.0\BuildCustomizations\CUDA 11.7.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 11.7.targets" />
   </ImportGroup>
 </Project>

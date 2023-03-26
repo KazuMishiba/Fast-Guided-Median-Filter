@@ -1,5 +1,5 @@
 #include "Method.h"
-
+#define HOME
 
 Method::Method()
 {	//âÊëúì«Ç›çûÇ›
@@ -44,8 +44,11 @@ Method::Method()
 	*/
 
 	Experimenter ex;
+
+	ex.forRefactoring(filePathSrc_2d, filePathGuide_2d);
+
 	//ex.performFilteringForVideo(filePathSrc_video);
-	ex.performSpeedTest(filePathSrc_2d);
+	//ex.performSpeedTest(filePathSrc_2d);
 	//ex.test(filePathSrc_2d);
 	
 	//ò_ï∂óp

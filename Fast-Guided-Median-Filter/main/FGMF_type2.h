@@ -247,6 +247,14 @@ cv::Mat FGMF2::filter2DWindow(cv::Mat& I, cv::Mat& G, int threadNum, int radius,
 					float dx;
 					calculateCxDx(Wmain[k]->gsum, pixel_sum_window_inv, eps2, *G_center, cx, dx);
 					findMedian(cx, dx, half, *Wmain[k], *result_center);
+
+					/*
+					if (x[1].center == 0)
+					{
+						debugging(x[0].center, x[1].center, Wmain[k]->gsum, pixel_sum_window, Wmain[k]->histo, Wmain[k]->sumUpToIndex, *result_center, cx, dx);
+					}
+					*/
+
 					G_center++;
 					result_center++;
 				}

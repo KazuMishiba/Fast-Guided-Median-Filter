@@ -29,3 +29,9 @@ void cu_calculateCxDx(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radiu
 
 
 void cu_calculateSumG3(SizeInfo& sizeInfo, cudaStream_t stream, DeviceArray<int>* G3, int radius, DeviceArray<int>* sumG, DeviceArray<int>* sumGG, DeviceArray<int>* tempG, DeviceArray<int>* tempGG);
+
+
+
+//refactoring—p
+void cu_calculateCxDxFromG(SizeInfo& sizeInfo, cudaStream_t stream, int* G, int radius, int pixelNumInWindow, float eps2, DeviceArray<float>* cxdx, int2* sumG, int2* temp);
+
