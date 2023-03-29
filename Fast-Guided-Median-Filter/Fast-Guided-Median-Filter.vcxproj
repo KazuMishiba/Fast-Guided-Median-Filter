@@ -10,68 +10,6 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="main\boxFilter.cu" />
-    <CudaCompile Include="conv\ConstantTimeWMF.cu" />
-    <CudaCompile Include="main\CxDxForHigherPrecision.cu" />
-    <CudaCompile Include="main\CxDxPrecalculation.cu" />
-    <CudaCompile Include="main\FGMF_type3.cu" />
-    <CudaCompile Include="conv\GuidedFilter.cu" />
-    <CudaCompile Include="refactoring\CalculateC_D_ver0.cu" />
-    <CudaCompile Include="refactoring\CalculateC_D_ver2.cu" />
-    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver0.cu" />
-    <CudaCompile Include="refactoring\FGMF_GPU_Or_ver2.cu" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="refactoring\CalculateC_D_ver0.cuh" />
-    <ClInclude Include="refactoring\CalculateC_D_ver2.cuh" />
-    <ClInclude Include="refactoring\FGMF_CPU_O1.h" />
-    <ClInclude Include="main\boxFilter.cuh" />
-    <ClInclude Include="main\common.h" />
-    <ClInclude Include="conv\ConstantTimeWMF.cuh" />
-    <ClInclude Include="conv\ConstantTimeWMF.h" />
-    <ClInclude Include="main\CxDxPrecalculation.cuh" />
-    <ClInclude Include="main\DataContainer.h" />
-    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.cuh" />
-    <ClInclude Include="refactoring\FGMF_GPU_Or_ver0.h" />
-    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.cuh" />
-    <ClInclude Include="refactoring\FGMF_GPU_Or_ver2.h" />
-    <ClInclude Include="refactoring\Helper.h" />
-    <ClInclude Include="test\Experimenter.h" />
-    <ClInclude Include="test\ExperimentManager.h" />
-    <ClInclude Include="main\FGMF.h" />
-    <ClInclude Include="main\FGMF_base.h" />
-    <ClInclude Include="main\FGMF_type1.h" />
-    <ClInclude Include="main\FGMF_type2.h" />
-    <ClInclude Include="main\FGMF_type3.cuh" />
-    <ClInclude Include="main\FGMF_type3.h" />
-    <ClInclude Include="main\FGMF_window.h" />
-    <ClInclude Include="conv\GuidedFilter.cuh" />
-    <ClInclude Include="conv\GuidedFilter.h" />
-    <ClInclude Include="test\json.hpp" />
-    <ClInclude Include="conv\l1solver.h" />
-    <ClInclude Include="test\Method.h" />
-    <ClInclude Include="main\Utility.cuh" />
-    <ClInclude Include="main\Utility.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="conv\ConstantTimeWMF.cpp" />
-    <ClCompile Include="refactoring\FGMF_CPU_O1.cpp" />
-    <ClCompile Include="main\DataContainer.cpp" />
-    <ClCompile Include="refactoring\FGMF_GPU_Or_ver0.cpp" />
-    <ClCompile Include="refactoring\FGMF_GPU_Or_ver2.cpp" />
-    <ClCompile Include="test\Experimenter.cpp" />
-    <ClCompile Include="main\FGMF.cpp" />
-    <ClCompile Include="main\FGMF_type1.cpp" />
-    <ClCompile Include="main\FGMF_type2.cpp" />
-    <ClCompile Include="main\FGMF_type3.cpp" />
-    <ClCompile Include="conv\GuidedFilter.cpp" />
-    <ClCompile Include="conv\l1solver.cpp" />
-    <ClCompile Include="main\main.cpp" />
-    <ClCompile Include="test\Method.cpp" />
-    <ClCompile Include="test\save.cpp" />
-    <ClCompile Include="main\Utility.cpp" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A8BE03E1-7B12-45F3-9E28-D4F60840CDCC}</ProjectGuid>
     <RootNamespace>Fast_Guided_Median_Filter</RootNamespace>
