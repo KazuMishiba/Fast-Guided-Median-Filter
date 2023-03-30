@@ -42,7 +42,7 @@ The code has been tested in the following environment:
 - C++ 14
 
 
-## Usage
+## Usage for CPU-O(1)
 
 ```
 FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <root_epsilon>] [-b <bit_depth>] [-t <number_of_threads>] [-s <output_image_path>]
@@ -55,11 +55,17 @@ FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <ro
 | --- | --- |
 | -i, --input | (Required) Input image path. |
 | -g, --guide | (Optional) Guide image path. Default: same as input image path. |
-| -r, --radius | (Optional) Radius (int). Default: 5. |
+| -r, --radius | (Optional) Window radius (int). Default: 5. |
 | -e, --root-epsilon | (Optional) Root of epsilon (float). Default: 2.55. |
 | -b, --bit-depth | (Optional) Bit depth per channel (int). Default: 8. |
 | -t, --threads | (Optional) Number of threads (int). Default: number of available processors. |
 | -s, --save | (Optional) Output image save path. Default: output.png in the same folder as the program. |
+
+
+**Note:**
+
+- The **`e`** option represents the root of the parameter $\epsilon$ in the paper, and it is squared internally in the program. For example, **`e 25.5`** means $\epsilon = 25.5^2$.
+- The default number of threads is set to the number of available processors using the **`omp_get_num_procs()`** function.
 
 ### Example
 
@@ -68,3 +74,15 @@ FGMF_CPU.exe -i input.png -g guide.png -r 10 -e 25.5 -b 8 -t 4 -s output.png
 
 ```
 
+
+## Usage for GPU-O(r)
+Available soon.
+
+## Usage for List-O(1)
+Available soon.
+
+
+## Notes
+- This code has been refactored to improve readability. As a result, the speed has decreased by approximately 1.2 times compared to the speed reported in the paper.
+- The computation times reported in the paper does not include uploading and downloading images to/from GPU memory.
+- Proper processing speed measurements require a "warm-up" run at the start of the measurement that is not included in the measurement.
