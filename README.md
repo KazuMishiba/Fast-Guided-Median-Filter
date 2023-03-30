@@ -64,7 +64,7 @@ FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <ro
 
 **Note:**
 
-- The **`e`** option represents the root of the parameter $\epsilon$ in the paper, and it is squared internally in the program. For example, **`e 25.5`** means $\epsilon = 25.5^2$.
+- The **`-e`** option represents the root of the parameter $\epsilon$ in the paper, and it is squared internally in the program. For example, **`-e 25.5`** means $\epsilon = 25.5^2$.
 - The default number of threads is set to the number of available processors using the **`omp_get_num_procs()`** function.
 
 ### Example
