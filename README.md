@@ -22,7 +22,7 @@ K. Mishiba, "Fast Guided Median Filter," in IEEE Transactions on Image Processin
 ### CPU-O(1)
 - CPU implementation with O(1) sliding window approach
 - The code can handle 2D grayscale and color images
-- The code is available in this repository
+- The code is available in this repository (FGMF_CPU)
 ### GPU-O(r)
 - GPU implementation with O(r) sliding window approach
 - The code, which can handle 2D grayscale, color, multispectral images, 3D and 4D grayscale/color images, will be released soon
