@@ -39,7 +39,7 @@ T parseArgument(const string& argument) {
  * Usage:
  *   -i, --input <input_image_path>                (required) Input image path.
  *   -g, --guide <guide_image_path>                (optional) Guide image path. Default: same as input image path.
- *   -r, --radius <radius>                         (optional) Radius (int). Default: 5.
+ *   -r, --radius <radius>                         (optional) Window radius (int). Default: 5.
  *   -e, --root-epsilon <root_epsilon>             (optional) Root of epsilon (float). Default: 2.55.
  *   -b, --bit-depth <bit_depth>                   (optional) Bit depth per channel (int). Default: 8.
  *   -t, --threads <number_of_threads>             (optional) Number of threads (int). Default: number of available processors.
