@@ -4,14 +4,19 @@
 
 using namespace std;
 
-void displayParamter(const string& inputImagePath, const string& guideImagePath, int r, float epsilon, int bitDepth, int numThreads) {
+void displayParamter(const string& inputImagePath, const string& guideImagePath, cv::Mat& f_img, cv::Mat& g_img, int r, float epsilon, int numThreads, int bitDepth, bool negativeFlag) {
     cout << "Processing image with the following parameters:" << endl;
     cout << "Input Image Path: " << inputImagePath << endl;
+    cout << "Input Image Size: " << f_img.cols << "x" << f_img.rows << "x" << f_img.channels() << endl;
     cout << "Guide Image Path: " << guideImagePath << endl;
+    cout << "Guide Image Size: " << g_img.cols << "x" << g_img.rows << "x" << g_img.channels() << endl;
     cout << "Radius: " << r << endl;
     cout << "Epsilon: " << epsilon << endl;
-    cout << "Bit Depth: " << bitDepth << endl;
+    cout << "Input Bit Depth: " << bitDepth << endl;
     cout << "Number of Threads: " << numThreads << endl;
+    if (negativeFlag)
+        cout << "If the input image contains negative values, it does not work." << endl;
+    cout << endl;
 }
 
 template<typename T>
@@ -41,7 +46,6 @@ T parseArgument(const string& argument) {
  *   -g, --guide <guide_image_path>                (optional) Guide image path. Default: same as input image path.
  *   -r, --radius <radius>                         (optional) Window radius (int). Default: 5.
  *   -e, --root-epsilon <root_epsilon>             (optional) Root of epsilon (float). Default: 2.55.
- *   -b, --bit-depth <bit_depth>                   (optional) Bit depth per channel (int). Default: 8.
  *   -t, --threads <number_of_threads>             (optional) Number of threads (int). Default: number of available processors.
  *   -s, --save <output_image_path>                (optional) Output image save path. Default: output.png in the same folder as the program.
  */
@@ -52,7 +56,6 @@ int main(int argc, char** argv) {
         string outputImagePath = "output.png";
         int r = 5;
         float rootEpsilon = 2.55f;
-        int bitDepth = 8;
         int numThreads = omp_get_num_procs();
 
         for (int i = 1; i < argc; i++) {
@@ -68,9 +71,6 @@ int main(int argc, char** argv) {
             }
             else if (arg == "-e" || arg == "--root-epsilon") {
                 rootEpsilon = parseArgument<float>(argv[++i]);
-            }
-            else if (arg == "-b" || arg == "--bit-depth") {
-                bitDepth = parseArgument<int>(argv[++i]);
             }
             else if (arg == "-t" || arg == "--threads") {
                 numThreads = parseArgument<int>(argv[++i]);
@@ -91,11 +91,6 @@ int main(int argc, char** argv) {
             guideImagePath = inputImagePath;
         }
 
-        float epsilon = rootEpsilon * rootEpsilon;
-        int fRange = pow(2, bitDepth);
-
-        displayParamter(inputImagePath, guideImagePath, r, epsilon, bitDepth, numThreads);
-
         // Read input image
         cv::Mat f_img = cv::imread(inputImagePath, cv::IMREAD_UNCHANGED);
         if (f_img.empty()) {
@@ -107,6 +102,42 @@ int main(int argc, char** argv) {
         if (g_img.empty()) {
             throw runtime_error("Failed to load guide image: " + guideImagePath);
         }
+
+        float epsilon = rootEpsilon * rootEpsilon;
+
+        // Bit depth of input image
+        int inputDepth = f_img.depth();
+        int bitDepth;
+        bool negativeFlag;
+
+        if (inputDepth == 0) {
+            bitDepth = 8;
+            negativeFlag = false;
+        }
+        else if (inputDepth == 1) {
+            bitDepth = 8;
+            negativeFlag = true;
+        }
+        else if (inputDepth == 2) {
+            bitDepth = 16;
+            negativeFlag = false;
+        }
+        else if (inputDepth == 3) {
+            bitDepth = 16;
+            negativeFlag = true;
+        }
+        else if (inputDepth == 4) {
+            bitDepth = 32;
+            negativeFlag = true;
+        }
+        else {
+            throw runtime_error("Invalid input image.");
+        }
+        int fRange = pow(2, bitDepth);
+
+        // Display settings
+        displayParamter(inputImagePath, guideImagePath, f_img, g_img, r, epsilon, numThreads, bitDepth, negativeFlag);
+
 
         // Apply CPU-O(1) filter
         cv::Mat result = FGMF_CPU_O1::filter_2d(f_img, g_img, r, epsilon, fRange, numThreads);

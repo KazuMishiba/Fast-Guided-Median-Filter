@@ -46,6 +46,8 @@ namespace FGMF_CPU_O1
 		else {
 			throw std::invalid_argument("The number of channels in the input image and output image is " + std::to_string(channelNum_f_) + " and " + std::to_string(channelNum_g_) + ", although only 1 or 3 are allowed.");
 		}
+
+		// Restore the data type
 		if (result.depth() != originalDepth_)
 		{
 			result.convertTo(result, originalDepth_);

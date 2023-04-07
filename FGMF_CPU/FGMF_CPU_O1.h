@@ -182,9 +182,7 @@ namespace FGMF_CPU_O1
 		WMF(cv::Mat& f_img, cv::Mat& g_img, int radius, float epsilon, int fRange, int numThreads)
 			: f_img_(f_img), g_img_(g_img), numThreads_(numThreads), radius_(radius), epsilon_(epsilon), fRange_(fRange) , M_(f_img.rows), N_(f_img.cols), p_(radius), m_(radius + 1), channelNum_f_(f_img_.channels()), channelNum_g_(g_img_.channels())
 		{
-			// Check input image and guided image depth for valid values.
-			assert(f_img_.depth() == CV_32S || f_img_.depth() == CV_8U);
-			assert(g_img_.depth() == CV_32S || g_img_.depth() == CV_8U);
+			originalDepth_ = f_img_.depth();
 			if (f_img_.depth() != CV_32S)
 				f_img_.convertTo(f_img_, CV_32S);
 			if (g_img_.depth() != CV_32S)
@@ -224,7 +222,7 @@ namespace FGMF_CPU_O1
 
 		int M_;                // Image height
 		int N_;                // Image width
-		int originalDepth_;    // Original depth of input image (CV_8U or CV_32S)
+		int originalDepth_;    // Original depth of input image
 		int channelNum_f_;     // Number of channels in the input image
 		int channelNum_g_;     // Number of channels in the guided image
 		int p_;                // x^+ = x + r = x + p_
