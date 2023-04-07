@@ -1,6 +1,9 @@
 # Fast-Guided-Median-Filter
 
 This repository contains the source code for the [Fast Guided Median Filter](https://ieeexplore.ieee.org/document/10007858) published in IEEE Transactions on Image Processing.
+
+The paper proposes a guided filter kernel-based weighted median filter that is compatible with both CPU and GPU, and capable of processing multidimensional, multichannel, and high precision data at high speed.
+
 The code is released under the MIT License.
 Please cite our paper when you use or modify this code.
 
@@ -23,12 +26,13 @@ K. Mishiba, "Fast Guided Median Filter," in IEEE Transactions on Image Processin
 - CPU implementation with O(1) sliding window approach
 - The code can handle 2D grayscale and color images
 - The code is available in this repository (FGMF_CPU)
+### List-O(1)
+- O(1) sliding window on CPU for high precision data
+- The code can handle 2D grayscale and color images
+- The code is available in this repository (FGMF_List)
 ### GPU-O(r)
 - GPU implementation with O(r) sliding window approach
 - The code, which can handle 2D grayscale, color, multispectral images, 3D and 4D grayscale/color images, will be released soon
-### List-O(1)
-- O(1) sliding window on CPU for high precision data
-- The code, which can handle 2D grayscale and color images, will be released soon
 
 ## System Requirements
 The code has been tested in the following environment:
@@ -45,7 +49,7 @@ The code has been tested in the following environment:
 ## Usage for CPU-O(1)
 
 ```
-FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <root_epsilon>] [-b <bit_depth>] [-t <number_of_threads>] [-s <output_image_path>]
+FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <root_epsilon>] [-t <number_of_threads>] [-s <output_image_path>]
 
 ```
 
@@ -57,7 +61,6 @@ FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <ro
 | -g, --guide | (Optional) Guide image path. Default: same as input image path. |
 | -r, --radius | (Optional) Window radius (int). Default: 5. |
 | -e, --root-epsilon | (Optional) Root of epsilon (float). Default: 2.55. |
-| -b, --bit-depth | (Optional) Bit depth per channel (int). Default: 8. |
 | -t, --threads | (Optional) Number of threads (int). Default: number of available processors. |
 | -s, --save | (Optional) Output image save path. Default: output.png in the same folder as the program. |
 
@@ -66,19 +69,35 @@ FGMF_CPU.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <ro
 
 - The **`-e`** option represents the root of the parameter $\epsilon$ in the paper, and it is squared internally in the program. For example, **`-e 25.5`** means $\epsilon = 25.5^2$.
 - The default number of threads is set to the number of available processors using the **`omp_get_num_procs()`** function.
+- The -b option has been deprecated. The input image bit-depth is now automatically determined within the program.
 
 ### Example
 
 ```
-FGMF_CPU.exe -i input.png -g guide.png -r 10 -e 25.5 -b 8 -t 4 -s output.png
+FGMF_CPU.exe -i input.png -g guide.png -r 10 -e 25.5 -t 4 -s output.png
 
 ```
 
 
-## Usage for GPU-O(r)
-Available soon.
-
 ## Usage for List-O(1)
+
+```
+FGMF_List.exe -i <input_image_path> [-g <guide_image_path>] [-r <radius>] [-e <root_epsilon>] [-t <number_of_threads>] [-s <output_image_path>]
+
+```
+
+### Options
+
+Same as CPU-O(1).
+
+
+### Example
+
+```
+FGMF_List.exe -i input.png -g guide.png -r 10 -e 25.5 -t 4 -s output.png
+
+
+## Usage for GPU-O(r)
 Available soon.
 
 
