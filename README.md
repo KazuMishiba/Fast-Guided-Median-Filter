@@ -96,6 +96,8 @@ Same as CPU-O(1).
 ```
 FGMF_List.exe -i input.png -g guide.png -r 10 -e 25.5 -t 4 -s output.png
 
+```
+
 
 ## Usage for GPU-O(r)
 Available soon.
